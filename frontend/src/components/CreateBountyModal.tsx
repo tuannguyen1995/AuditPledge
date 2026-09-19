@@ -57,19 +57,26 @@ export const CreateBountyModal: React.FC<CreateBountyModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-solar-base03/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-solar-base2 border border-solar-base1 rounded max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto font-sans">
+      <div className="bg-cyber-card border border-cyber-border rounded-xl max-w-xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-solar-base1 bg-solar-base3">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-cyber-border bg-cyber-bg">
           <div className="flex items-center space-x-2">
-            <Lock className="w-5 h-5 text-solar-cyan" />
-            <h3 className="font-mono font-bold text-base text-solar-base03">
-              Lock Audit Escrow Bounty
-            </h3>
+            <div className="p-1.5 bg-cyber-surface rounded-md text-neon-cyan border border-neon-cyan/40">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-mono font-bold text-base text-white">
+                Deploy Audit Escrow Bounty
+              </h3>
+              <p className="text-[11px] text-cyber-muted font-mono">
+                Lock GEN in autonomous custody &bull; Define threat models
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-solar-base01 hover:text-solar-base03 p-1 rounded hover:bg-solar-base2 transition-colors"
+            className="text-cyber-muted hover:text-white p-1 rounded-md hover:bg-cyber-surface transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -77,37 +84,41 @@ export const CreateBountyModal: React.FC<CreateBountyModalProps> = ({
 
         {/* Modal Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Quick Presets Bar */}
-          <div>
-            <div className="flex items-center space-x-1.5 text-xs text-solar-base01 font-mono mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-solar-yellow" />
-              <span>Fast Demo Presets (Click to autofill):</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {DEMO_PRESETS.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleApplyPreset(preset)}
-                  className="px-2.5 py-1 bg-solar-base3 hover:bg-solar-cyan/15 hover:border-solar-cyan border border-solar-base1 rounded text-xs font-mono text-solar-base02 transition-all"
-                >
-                  {preset.name} ({preset.amount} GEN)
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Error Message */}
           {error && (
-            <div className="p-3 bg-solar-red/15 border border-solar-red text-solar-red rounded text-xs flex items-center space-x-2 font-mono">
+            <div className="p-3 bg-neon-crimson/15 border border-neon-crimson/50 text-neon-crimson rounded-md text-xs flex items-center space-x-2 font-mono">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
+          {/* Quick Presets */}
+          <div>
+            <div className="flex items-center space-x-1.5 text-xs font-mono text-cyber-muted mb-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-neon-cyan" />
+              <span>Quick Security Presets:</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {DEMO_PRESETS.map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => handleApplyPreset(p)}
+                  className="px-2.5 py-1.5 bg-cyber-surface hover:bg-cyber-border border border-cyber-border hover:border-neon-cyan/50 rounded-md text-left transition-all"
+                >
+                  <div className="text-[11px] font-mono font-bold text-white truncate">
+                    {p.name}
+                  </div>
+                  <div className="text-[10px] font-mono text-neon-cyan">
+                    {p.amount} GEN
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Target Repo URL */}
           <div>
-            <label className="block text-xs font-mono font-bold text-solar-base02 mb-1 uppercase tracking-wider">
+            <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
               Target Codebase / Repository URL *
             </label>
             <input
@@ -115,109 +126,95 @@ export const CreateBountyModal: React.FC<CreateBountyModalProps> = ({
               required
               value={repoUrl}
               onChange={(e) => setRepoUrl(e.target.value)}
-              placeholder="https://github.com/protocol/smart-contracts"
-              className="w-full px-3 py-2 bg-solar-base3 border border-solar-base1 rounded text-sm text-solar-base03 focus:outline-none focus:border-solar-cyan font-mono"
+              placeholder="https://github.com/defi-protocol/vault-core"
+              className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-cyan font-mono text-xs"
             />
+            <p className="text-[11px] text-cyber-subtle mt-1 font-sans">
+              Must be publicly accessible. GenLayer validators fetch and verify code via on-chain web rendering.
+            </p>
           </div>
 
-          {/* Audit Scope & Invariants */}
+          {/* Scope & Invariants */}
           <div>
-            <label className="block text-xs font-mono font-bold text-solar-base02 mb-1 uppercase tracking-wider">
-              Audit Scope & Invariants *
+            <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
+              Required Invariants & Critical Scope *
             </label>
             <textarea
               required
               rows={3}
               value={scope}
               onChange={(e) => setScope(e.target.value)}
-              placeholder="Specify critical invariants to evaluate (e.g., Reentrancy resistance, access controls, price manipulation, solvency)..."
-              className="w-full px-3 py-2 bg-solar-base3 border border-solar-base1 rounded text-sm text-solar-base03 focus:outline-none focus:border-solar-cyan font-sans"
+              placeholder="List critical invariants: Solvency under flash loans, access control on admin endpoints, oracle staleness checks..."
+              className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-cyan font-sans"
             />
-            <p className="text-[11px] text-solar-base00 mt-1">
-              GenLayer AI validators will compare submitted reports against these exact specifications.
-            </p>
           </div>
 
-          {/* Amount & Duration Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Escrow Amount & Duration Grid */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-mono font-bold text-solar-base02 mb-1 uppercase tracking-wider">
-                Escrow Bounty (GEN) *
+              <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
+                Bounty Pool (GEN) *
               </label>
               <div className="relative">
                 <input
                   type="number"
-                  step="0.01"
+                  step="0.1"
                   min="0.01"
                   required
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 bg-solar-base3 border border-solar-base1 rounded text-sm text-solar-base03 focus:outline-none focus:border-solar-cyan font-mono font-bold"
+                  placeholder="1.0"
+                  className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-cyan font-mono font-bold"
                 />
-                <span className="absolute right-3 top-2.5 text-xs font-mono font-bold text-solar-cyan">
+                <span className="absolute right-3 top-2.5 text-xs font-mono font-bold text-neon-cyan">
                   GEN
                 </span>
               </div>
-              <p className="text-[11px] text-solar-base00 mt-1">
-                Locked securely in contract on Studionet.
-              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-mono font-bold text-solar-base02 mb-1 uppercase tracking-wider">
-                Expiration (Blocks)
+              <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
+                Expiry (Blocks)
               </label>
               <input
                 type="number"
                 min="100"
-                step="100"
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-solar-base3 border border-solar-base1 rounded text-sm text-solar-base03 focus:outline-none focus:border-solar-cyan font-mono"
+                placeholder="6000"
+                className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-cyan font-mono"
               />
-              <p className="text-[11px] text-solar-base00 mt-1">
-                Owner can reclaim escrow if no submission after this duration.
-              </p>
             </div>
           </div>
 
-          {/* Security Notice */}
-          <div className="p-3 bg-solar-base3 border border-solar-base1 rounded text-xs text-solar-base01 space-y-1">
-            <div className="flex items-center space-x-1.5 font-bold text-solar-base02 font-mono">
-              <ShieldAlert className="w-3.5 h-3.5 text-solar-cyan" />
-              <span>Decentralized Escrow Guarantee</span>
+          {/* Graduated Payout Notice */}
+          <div className="p-3 bg-cyber-surface border border-cyber-border rounded-md text-xs text-cyber-muted space-y-1">
+            <div className="flex items-center space-x-1 font-bold text-neon-emerald font-mono">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>Graduated Settlement & Cooling-Off Protection</span>
             </div>
-            <p className="text-[11px] text-solar-base00 leading-relaxed">
-              If an auditor submits a report, the AI Jury will verify that technical depth &ge; 70 before disbursing funds. If the report fails or is rejected, 100% of the bounty is refunded to your wallet.
+            <p className="text-[11px] text-cyber-subtle leading-relaxed">
+              If an auditor reports a valid vulnerability, payouts are graduated: Critical (100%), Medium (40% payout / 60% refund), or 0% refund on spam. The 20-block cooling-off window guarantees your right to challenge false findings.
             </p>
           </div>
 
-          {/* Modal Footer */}
-          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-solar-base1">
+          {/* Footer Actions */}
+          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-cyber-border">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 bg-solar-base3 hover:bg-solar-base1/30 text-solar-base01 rounded font-mono text-xs transition-colors"
+              className="px-4 py-2 bg-cyber-surface hover:bg-cyber-border text-cyber-muted rounded-md font-mono text-xs transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 bg-solar-cyan hover:bg-solar-cyan/90 text-solar-base3 font-mono font-bold text-xs rounded border border-solar-cyan transition-all shadow-sm disabled:opacity-50 flex items-center space-x-1.5"
+              className="px-5 py-2 bg-gradient-to-r from-neon-cyan to-neon-emerald text-cyber-bg font-mono font-bold text-xs rounded-md shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center space-x-1.5 tracking-wider"
             >
-              {isSubmitting ? (
-                <>
-                  <span className="w-3 h-3 border-2 border-solar-base3 border-t-transparent rounded-full animate-spin"></span>
-                  <span>Locking Bounty on Chain...</span>
-                </>
-              ) : (
-                <>
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Lock Escrow ({amount} GEN)</span>
-                </>
-              )}
+              <Lock className="w-3.5 h-3.5" />
+              <span>{isSubmitting ? "Locking on-chain..." : "Lock Escrow & Deploy"}</span>
             </button>
           </div>
         </form>

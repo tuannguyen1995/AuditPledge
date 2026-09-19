@@ -27,13 +27,16 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
 
   if (!isOpen || !bounty) return null;
 
+  const isOwnerDispute = bounty.status === 2; // Provisional pass challenge
+  const isAuditorDispute = bounty.status === 3; // Provisional reject challenge
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (mode === "DISPUTE") {
       if (!reason.trim() || reason.trim().length < 10) {
-        setError("Please provide a substantive justification for disputing this verdict (min 10 characters).");
+        setError("Please provide a substantive technical justification for disputing this verdict (min 10 characters).");
         return;
       }
       try {
@@ -57,19 +60,32 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-solar-base03/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-solar-base2 border border-solar-base1 rounded max-w-xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto font-sans">
+      <div className="bg-cyber-card border border-cyber-border rounded-xl max-w-xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-solar-base1 bg-solar-base3">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-cyber-border bg-cyber-bg">
           <div className="flex items-center space-x-2">
-            <Scale className="w-5 h-5 text-solar-red" />
-            <h3 className="font-mono font-bold text-base text-solar-base03">
-              {mode === "DISPUTE" ? "Challenge AI Verdict (Raise Dispute)" : "Appellate Court Counter-Evidence"}
-            </h3>
+            <div className="p-1.5 bg-cyber-surface rounded-md text-neon-crimson border border-neon-crimson/40">
+              <Scale className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-mono font-bold text-base text-white">
+                {mode === "DISPUTE"
+                  ? isOwnerDispute
+                    ? "Project Owner Challenge (Dispute Pass)"
+                    : isAuditorDispute
+                    ? "Security Auditor Challenge (Dispute Reject)"
+                    : "Challenge AI Verdict (Dispute)"
+                  : "Appellate Tribunal Counter-Evidence"}
+              </h3>
+              <p className="text-[11px] text-cyber-muted font-mono">
+                Bounty: {bounty.bounty_id} &bull; Symmetrical Bilateral Protection
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-solar-base01 hover:text-solar-base03 p-1 rounded hover:bg-solar-base2 transition-colors"
+            className="text-cyber-muted hover:text-white p-1 rounded-md hover:bg-cyber-surface transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -77,22 +93,22 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
 
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="p-3 bg-solar-base3 border border-solar-base1 rounded text-xs space-y-1 font-mono">
+          <div className="p-3 bg-cyber-surface border border-cyber-border rounded-lg text-xs space-y-1 font-mono">
             <div className="flex justify-between">
-              <span className="text-solar-base01">Target Escrow:</span>
-              <span className="font-bold text-solar-cyan">{bounty.bounty_id}</span>
+              <span className="text-cyber-muted">Target Escrow:</span>
+              <span className="font-bold text-neon-cyan">{bounty.bounty_id}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-solar-base01">Current AI Verdict:</span>
-              <span className="font-bold text-solar-base03">{bounty.verdict}</span>
+              <span className="text-cyber-muted">Provisional Verdict:</span>
+              <span className="font-bold text-white">{bounty.verdict}</span>
             </div>
-            <div className="text-[11px] text-solar-base00 italic pt-1 border-t border-solar-base1/40">
+            <div className="text-[11px] text-cyber-subtle italic pt-1 border-t border-cyber-border">
               "{bounty.reason}"
             </div>
           </div>
 
           {error && (
-            <div className="p-3 bg-solar-red/15 border border-solar-red text-solar-red rounded text-xs flex items-center space-x-2 font-mono">
+            <div className="p-3 bg-neon-crimson/15 border border-neon-crimson/50 text-neon-crimson rounded-md text-xs flex items-center space-x-2 font-mono">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -100,25 +116,25 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
 
           {mode === "DISPUTE" ? (
             <div>
-              <label className="block text-xs font-mono font-bold text-solar-base02 mb-1 uppercase tracking-wider">
-                Grounds for Dispute & Technical Rebuttal *
+              <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
+                Technical Rebuttal & Dispute Justification *
               </label>
               <textarea
                 required
                 rows={4}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Explain why this finding is inaccurate, out-of-scope, or why the depth score was evaluated unfairly..."
-                className="w-full px-3 py-2 bg-solar-base3 border border-solar-base1 rounded text-sm text-solar-base03 focus:outline-none focus:border-solar-cyan font-sans"
+                placeholder="Detail why this verdict is mathematically unfeasible, out of scope, or why the depth score was evaluated unfairly..."
+                className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-crimson font-sans"
               />
-              <p className="text-[11px] text-solar-base00 mt-1">
-                Disputing halts automated disbursement and moves the escrow to the Appellate Security Court.
+              <p className="text-[11px] text-cyber-subtle mt-1">
+                Halts disbursement immediately and elevates this escrow to the On-Chain Appellate Security Court.
               </p>
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-mono font-bold text-solar-base02 mb-1 uppercase tracking-wider">
-                Appellate Counter-Evidence / PoC URL *
+              <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
+                Appellate Counter-Evidence URL (Gist / PoC Repo) *
               </label>
               <input
                 type="url"
@@ -126,42 +142,42 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
                 value={appealUrl}
                 onChange={(e) => setAppealUrl(e.target.value)}
                 placeholder="https://gist.githubusercontent.com/.../counter_proof.md"
-                className="w-full px-3 py-2 bg-solar-base3 border border-solar-base1 rounded text-sm text-solar-base03 focus:outline-none focus:border-solar-cyan font-mono"
+                className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-crimson font-mono text-xs"
               />
-              <p className="text-[11px] text-solar-base00 mt-1">
-                Must be a publicly accessible URL containing supplementary reproduction scripts or logs.
+              <p className="text-[11px] text-cyber-subtle mt-1">
+                Must be a publicly accessible link with executable reproduction script or test traces.
               </p>
             </div>
           )}
 
-          <div className="p-3 bg-solar-base3 border border-solar-base1 rounded text-xs text-solar-base01 space-y-1">
-            <div className="flex items-center space-x-1 font-bold text-solar-base02 font-mono">
-              <ShieldAlert className="w-3.5 h-3.5 text-solar-red" />
-              <span>Due Process Guarantee</span>
+          <div className="p-3 bg-cyber-surface border border-cyber-border rounded-md text-xs text-cyber-muted space-y-1">
+            <div className="flex items-center space-x-1 font-bold text-neon-crimson font-mono">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>Symmetrical Due Process Guarantee</span>
             </div>
-            <p className="text-[11px] text-solar-base00 leading-relaxed">
-              Both the Project Owner and Security Auditor possess equal rights to challenge assessments. GenLayer's secondary appellate consensus reviews counter-evidence without human bias.
+            <p className="text-[11px] text-cyber-subtle leading-relaxed">
+              Both the Project Owner and Security Auditor possess equal rights to challenge assessments during the 20-block cooling-off window. GenLayer's secondary consensus evaluates evidence impartially.
             </p>
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-solar-base1">
+          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-cyber-border">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 bg-solar-base3 hover:bg-solar-base1/30 text-solar-base01 rounded font-mono text-xs transition-colors"
+              className="px-4 py-2 bg-cyber-surface hover:bg-cyber-border text-cyber-muted rounded-md font-mono text-xs transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 bg-solar-red hover:bg-solar-red/90 text-solar-base3 font-mono font-bold text-xs rounded border border-solar-red transition-all shadow-sm disabled:opacity-50 flex items-center space-x-1.5"
+              className="px-5 py-2 bg-neon-crimson hover:bg-neon-crimson/90 text-white font-mono font-bold text-xs rounded-md shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center space-x-1.5"
             >
               {isSubmitting ? (
                 <>
-                  <span className="w-3 h-3 border-2 border-solar-base3 border-t-transparent rounded-full animate-spin"></span>
+                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                   <span>Transacting on-chain...</span>
                 </>
               ) : (

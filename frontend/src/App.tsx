@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { PlusCircle, Search, AlertCircle, CheckCircle, Terminal, Code2 } from "lucide-react";
+import { PlusCircle, Search, AlertCircle, CheckCircle, Terminal, ShieldAlert, Radio } from "lucide-react";
 import { createPublicClient, http, encodeFunctionData } from "viem";
 import { Navbar } from "./components/Navbar";
 import { StatsBar } from "./components/StatsBar";
@@ -297,7 +297,6 @@ export function App() {
       const txHash = await sendContractTx("create_audit_bounty", [repoUrl, scope, durationBlocks], wei);
       setNotice({ type: "info", msg: `Transaction broadcasted: ${txHash.slice(0, 10)}... Awaiting on-chain confirmation...` });
 
-      // Wait for block propagation
       await new Promise((resolve) => setTimeout(resolve, 3500));
       await refreshOnChainData();
       if (account) await fetchBalance(account);
@@ -482,22 +481,12 @@ export function App() {
 
   // Filter & Search Bounties across 8 Contract Lifecycle States
   const filteredBounties = bounties.filter((b) => {
-    // Status filters:
-    // 0: OPEN
-    // 1: IN_AUDIT
-    // 2: AWAITING_PAYOUT (Provisional Pass Cooling-Off)
-    // 3: AWAITING_REFUND (Provisional Reject Cooling-Off)
-    // 4: DISPUTED (Appellate Court)
-    // 5: AUDIT_APPROVED (Settled Payout)
-    // 6: AUDIT_REJECTED (Settled Refund)
-    // 7: CANCELLED (Reclaimed)
     if (activeTab === "OPEN" && b.status !== 0) return false;
     if (activeTab === "IN_AUDIT" && b.status !== 1) return false;
     if (activeTab === "COOLING_OFF" && b.status !== 2 && b.status !== 3) return false;
     if (activeTab === "DISPUTED" && b.status !== 4) return false;
     if (activeTab === "RESOLVED" && b.status !== 5 && b.status !== 6 && b.status !== 7) return false;
 
-    // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
@@ -512,7 +501,7 @@ export function App() {
   });
 
   return (
-    <div className="min-h-screen bg-solar-base3 text-solar-base02 flex flex-col font-sans">
+    <div className="min-h-screen bg-cyber-bg text-cyber-text flex flex-col font-sans bg-grid-cyber selection:bg-neon-cyan/20 selection:text-neon-cyan">
       {/* Top Terminal Bar with Disconnect Button and Direct Balance */}
       <Navbar
         account={account}
@@ -525,17 +514,17 @@ export function App() {
         userRole={userRole}
       />
 
-      {/* Main Container */}
+      {/* Main Security Operations Center Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
         {/* Notice Alert Banner */}
         {notice && (
           <div
-            className={`p-3 rounded border text-xs font-mono flex items-center justify-between shadow-sm animate-in fade-in duration-150 ${
+            className={`p-3 rounded-lg border text-xs font-mono flex items-center justify-between shadow-lg animate-in fade-in duration-150 ${
               notice.type === "success"
-                ? "bg-solar-green/15 border-solar-green text-solar-green"
+                ? "bg-neon-emerald/10 border-neon-emerald/50 text-neon-emerald"
                 : notice.type === "error"
-                ? "bg-solar-red/15 border-solar-red text-solar-red"
-                : "bg-solar-cyan/15 border-solar-cyan text-solar-cyan"
+                ? "bg-neon-crimson/10 border-neon-crimson/50 text-neon-crimson"
+                : "bg-neon-cyan/10 border-neon-cyan/50 text-neon-cyan"
             }`}
           >
             <div className="flex items-center space-x-2">
@@ -555,50 +544,55 @@ export function App() {
           </div>
         )}
 
-        {/* Hero Pitch Banner */}
-        <div className="bg-solar-base2 border border-solar-base1 rounded p-6 shadow-sm relative overflow-hidden">
-          <div className="max-w-3xl space-y-3">
-            <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-0.5 rounded bg-solar-base02 text-solar-cyan font-mono text-xs font-bold border border-solar-base01">
-                AGENTIC SECURITY INFRASTRUCTURE
+        {/* Hero SOC War Room Banner */}
+        <div className="bg-gradient-to-r from-cyber-card via-cyber-surface/60 to-cyber-card border border-cyber-border rounded-xl p-6 shadow-xl relative overflow-hidden group">
+          {/* Subtle Cyber Grid Glow */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-neon-cyan/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+
+          <div className="max-w-3xl space-y-3 relative z-10">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded bg-neon-cyan/10 text-neon-cyan font-mono text-xs font-bold border border-neon-cyan/30 flex items-center gap-1.5">
+                <Radio className="w-3 h-3 text-neon-emerald animate-pulse" />
+                <span>AGENTIC CYBER DEFENSE PROTOCOL</span>
               </span>
-              <span className="text-xs font-mono text-solar-base01">
-                GenLayer Studionet (Chain 61999) &bull; 100% On-Chain State
+              <span className="text-xs font-mono text-cyber-muted">
+                GenLayer StudioNet (Chain 61999) &bull; 100% Real On-Chain
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-mono font-bold text-solar-base03 leading-tight">
+
+            <h1 className="text-2xl sm:text-3xl font-mono font-bold text-white leading-tight">
               Autonomous Multi-Auditor Consensus & Vulnerability Disclosure Escrow
             </h1>
-            <p className="text-sm text-solar-base00 leading-relaxed font-sans">
-              AuditPledge eliminates asymmetric audit risks between developers and security auditors.
-              Powered by GenLayer’s on-chain web rendering and decentralized AI subjective consensus (<code className="font-mono text-solar-cyan bg-solar-base3 px-1 rounded">gl.vm.run_nondet</code>),
-              featuring <strong>Symmetrical 20-Block Cooling-Off Windows</strong> (protecting both Owner against false reports and Auditor against wrongful rejections),
-              a <strong>Graduated Payout Settlement Matrix</strong> (100% Critical / 40% Partial / 0% Reject), and an <strong>On-Chain Appellate Security Court</strong>.
+            <p className="text-sm text-cyber-muted leading-relaxed font-sans">
+              Traditional bug bounty escrows suffer from subjective dispute deadlocks and linter spam.
+              AuditPledge leverages GenLayer’s on-chain web rendering and decentralized AI subjective consensus (<code className="font-mono text-neon-cyan bg-cyber-surface px-1.5 py-0.5 rounded border border-cyber-border">gl.vm.run_nondet</code>),
+              featuring <strong>Symmetrical 20-Block Cooling-Off Windows</strong>, a <strong>Graduated 3-Tier Payout Matrix</strong> (100% Critical / 40% Partial / 0% Reject),
+              and an <strong>On-Chain Appellate Security Court</strong>.
             </p>
 
             <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
                 onClick={() => setIsCreateOpen(true)}
-                className="px-4 py-2 bg-solar-cyan hover:bg-solar-cyan/90 text-solar-base3 font-mono font-bold text-xs rounded border border-solar-cyan transition-all shadow-sm flex items-center space-x-2 active:scale-95"
+                className="px-4 py-2.5 bg-gradient-to-r from-neon-cyan to-neon-emerald hover:opacity-95 text-cyber-bg font-mono font-bold text-xs rounded-md shadow-lg transition-all flex items-center space-x-2 active:scale-95 tracking-wide"
               >
                 <PlusCircle className="w-4 h-4" />
-                <span>Create Audit Escrow Bounty</span>
+                <span>Deploy Audit Escrow Bounty</span>
               </button>
 
               <a
                 href="https://studio.genlayer.com"
                 target="_blank"
                 rel="noreferrer"
-                className="px-4 py-2 bg-solar-base3 hover:bg-solar-base1/30 text-solar-base02 font-mono text-xs font-semibold rounded border border-solar-base1 transition-colors flex items-center space-x-1.5"
+                className="px-4 py-2.5 bg-cyber-surface hover:bg-cyber-border text-white font-mono text-xs font-semibold rounded-md border border-cyber-border transition-colors flex items-center space-x-1.5"
               >
-                <Terminal className="w-4 h-4 text-solar-cyan" />
+                <Terminal className="w-4 h-4 text-neon-cyan" />
                 <span>Open GenLayer Studio IDE</span>
               </a>
             </div>
           </div>
         </div>
 
-        {/* Aggregate Stats Bar */}
+        {/* Aggregate Telemetry Stats Bar */}
         <StatsBar
           totalEscrowLocked={stats.totalEscrowLocked}
           totalAuditsResolved={stats.totalAuditsResolved}
@@ -610,19 +604,19 @@ export function App() {
         {/* Filter Controls & Search */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
           {/* Status Tabs */}
-          <div className="flex items-center space-x-1 bg-solar-base2 p-1 rounded border border-solar-base1 font-mono text-xs w-full sm:w-auto overflow-x-auto">
+          <div className="flex items-center space-x-1 bg-cyber-card p-1 rounded-lg border border-cyber-border font-mono text-xs w-full sm:w-auto overflow-x-auto">
             {(["ALL", "OPEN", "IN_AUDIT", "COOLING_OFF", "DISPUTED", "RESOLVED"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded transition-all whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${
                   activeTab === tab
-                    ? "bg-solar-base02 text-solar-base3 font-bold shadow-sm"
-                    : "text-solar-base01 hover:text-solar-base03 hover:bg-solar-base3/50"
+                    ? "bg-neon-cyan/20 text-neon-cyan font-bold border border-neon-cyan/40 shadow-sm"
+                    : "text-cyber-muted hover:text-white hover:bg-cyber-surface"
                 }`}
               >
-                {tab === "ALL" && `All Escrows (${bounties.length})`}
-                {tab === "OPEN" && `Open (${bounties.filter((b) => b.status === 0).length})`}
+                {tab === "ALL" && `All Vaults (${bounties.length})`}
+                {tab === "OPEN" && `Open Escrows (${bounties.filter((b) => b.status === 0).length})`}
                 {tab === "IN_AUDIT" && `In Review (${bounties.filter((b) => b.status === 1).length})`}
                 {tab === "COOLING_OFF" && `Cooling-Off (${bounties.filter((b) => b.status === 2 || b.status === 3).length})`}
                 {tab === "DISPUTED" && `Appeals (${bounties.filter((b) => b.status === 4).length})`}
@@ -633,13 +627,13 @@ export function App() {
 
           {/* Search Input */}
           <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-solar-base01" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-cyber-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search ID, repo or invariant..."
-              className="w-full pl-9 pr-3 py-1.5 bg-solar-base2 border border-solar-base1 rounded text-xs text-solar-base03 font-mono focus:outline-none focus:border-solar-cyan"
+              className="w-full pl-9 pr-3 py-1.5 bg-cyber-card border border-cyber-border rounded-lg text-xs text-white font-mono focus:outline-none focus:border-neon-cyan"
             />
           </div>
         </div>
@@ -647,22 +641,24 @@ export function App() {
         {/* Bounties Grid (Real On-Chain State Only) */}
         <div className="space-y-4">
           {filteredBounties.length === 0 ? (
-            <div className="bg-solar-base2 border border-solar-base1 rounded p-12 text-center space-y-3 font-mono">
-              <Code2 className="w-8 h-8 text-solar-base01 mx-auto" />
-              <div className="text-sm font-bold text-solar-base03">
-                {bounties.length === 0 ? "No On-Chain Bounties Yet" : "No Matching Escrows Found"}
+            <div className="bg-cyber-card border border-cyber-border rounded-xl p-12 text-center space-y-3 font-mono shadow-xl">
+              <div className="w-12 h-12 rounded-full bg-cyber-surface border border-cyber-border text-neon-cyan flex items-center justify-center mx-auto shadow-inner">
+                <ShieldAlert className="w-6 h-6" />
               </div>
-              <p className="text-xs text-solar-base00 max-w-md mx-auto font-sans leading-relaxed">
+              <div className="text-base font-bold text-white">
+                {bounties.length === 0 ? "No On-Chain Bounties Registered Yet" : "No Matching Security Escrows"}
+              </div>
+              <p className="text-xs text-cyber-muted max-w-md mx-auto font-sans leading-relaxed">
                 {bounties.length === 0
-                  ? `The smart contract at ${contractAddress.slice(0, 10)}... currently has 0 registered escrows. Click 'Create Audit Escrow Bounty' above to lock GEN and deploy the first real on-chain audit bounty on GenLayer StudioNet!`
-                  : "No audit escrow pools currently registered under this filter tab or search query."}
+                  ? `The smart contract at ${contractAddress.slice(0, 10)}... has 0 active escrow vaults. Lock GEN and deploy your project's first live audit bounty on GenLayer StudioNet!`
+                  : "No audit escrow pools match your current filter tab or search parameters."}
               </p>
               <button
                 onClick={() => setIsCreateOpen(true)}
-                className="px-4 py-2 bg-solar-cyan text-solar-base3 rounded text-xs font-bold inline-flex items-center space-x-1.5 shadow-sm active:scale-95"
+                className="px-4 py-2 bg-gradient-to-r from-neon-cyan to-neon-emerald text-cyber-bg rounded-md text-xs font-bold inline-flex items-center space-x-1.5 shadow-md active:scale-95"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
-                <span>Create Bounty on GenLayer</span>
+                <span>Deploy Bounty on GenLayer</span>
               </button>
             </div>
           ) : (
@@ -690,20 +686,21 @@ export function App() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-solar-base1 bg-solar-base2 py-4 mt-12 text-xs font-mono text-solar-base01">
+      {/* Cyber Footer */}
+      <footer className="border-t border-cyber-border bg-cyber-bg py-4 mt-12 text-xs font-mono text-cyber-muted">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div>
-            AuditPledge &copy; 2026 &bull; Autonomous Web3 Security Escrow & Appellate Court
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-neon-emerald animate-pulse"></span>
+            <span>AuditPledge &copy; 2026 &bull; Autonomous Web3 Security Escrow & Appellate Court</span>
           </div>
           <div className="flex items-center space-x-4 text-[11px]">
-            <span>Target: GenLayer studionet (0xF1EF)</span>
-            <span>&bull;</span>
+            <span>GenLayer StudioNet (Chain ID: 0xF1EF)</span>
+            <span className="text-cyber-subtle">&bull;</span>
             <a
               href="https://studio.genlayer.com"
               target="_blank"
               rel="noreferrer"
-              className="hover:text-solar-cyan underline"
+              className="text-neon-cyan hover:underline"
             >
               Studio Console
             </a>

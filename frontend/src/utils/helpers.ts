@@ -30,7 +30,7 @@ export interface AuditBountyData {
 }
 
 export function shortenAddress(addr: string, chars = 4): string {
-  if (!addr || addr === "0x0000000000000000000000000000000000000000") return "None (Unassigned)";
+  if (!addr || addr === "0x0000000000000000000000000000000000000000") return "Unassigned";
   if (addr.length <= chars * 2 + 2) return addr;
   return `${addr.slice(0, chars + 2)}...${addr.slice(-chars)}`;
 }
@@ -63,135 +63,150 @@ export function parseGENToWei(amountStr: string): bigint {
   }
 }
 
-export function getStatusBadge(status: number): { label: string; bg: string; text: string; border: string; desc: string } {
+export function getStatusBadge(status: number): { label: string; bg: string; text: string; border: string; desc: string; glow: string } {
   switch (status) {
     case 0:
       return {
-        label: "OPEN",
-        bg: "bg-solar-cyan/10",
-        text: "text-solar-cyan",
-        border: "border-solar-cyan",
-        desc: "Awaiting Auditor PoC submission",
+        label: "OPEN ESCROW",
+        bg: "bg-neon-cyan/10",
+        text: "text-neon-cyan",
+        border: "border-neon-cyan/40",
+        desc: "Awaiting Whitehat Auditor PoC submission",
+        glow: "cyber-glow-cyan",
       };
     case 1:
       return {
-        label: "IN AUDIT",
-        bg: "bg-solar-yellow/10",
-        text: "text-solar-yellow",
-        border: "border-solar-yellow",
-        desc: "Report submitted; ready for AI Jury adjudication",
+        label: "AI JURY REVIEW",
+        bg: "bg-neon-amber/10",
+        text: "text-neon-amber",
+        border: "border-neon-amber/40",
+        desc: "Report submitted; ready for AI Jury consensus",
+        glow: "cyber-glow-amber",
       };
     case 2:
       return {
         label: "COOLING-OFF (PASS)",
-        bg: "bg-solar-orange/15",
-        text: "text-solar-orange",
-        border: "border-solar-orange",
-        desc: "Provisional Pass: Owner may challenge within 20 blocks",
+        bg: "bg-neon-amber/15",
+        text: "text-neon-amber",
+        border: "border-neon-amber",
+        desc: "Provisional Pass: Owner 20-block challenge window",
+        glow: "cyber-glow-amber",
       };
     case 3:
       return {
         label: "COOLING-OFF (REJECT)",
-        bg: "bg-solar-orange/15",
-        text: "text-solar-orange",
-        border: "border-solar-orange",
-        desc: "Provisional Reject: Auditor may challenge within 20 blocks",
+        bg: "bg-neon-amber/15",
+        text: "text-neon-amber",
+        border: "border-neon-amber",
+        desc: "Provisional Reject: Auditor 20-block challenge window",
+        glow: "cyber-glow-amber",
       };
     case 4:
       return {
-        label: "DISPUTED",
-        bg: "bg-solar-red/15",
-        text: "text-solar-red",
-        border: "border-solar-red",
-        desc: "Active dispute: In Appellate Security Court review",
+        label: "TRIBUNAL DISPUTED",
+        bg: "bg-neon-crimson/15",
+        text: "text-neon-crimson",
+        border: "border-neon-crimson",
+        desc: "Active dispute: In Appellate Security Court",
+        glow: "cyber-glow-crimson",
       };
     case 5:
       return {
         label: "AUDIT APPROVED",
-        bg: "bg-solar-green/15",
-        text: "text-solar-green",
-        border: "border-solar-green",
+        bg: "bg-neon-emerald/15",
+        text: "text-neon-emerald",
+        border: "border-neon-emerald",
         desc: "Settled: Bounty disbursed to auditor",
+        glow: "cyber-glow-emerald",
       };
     case 6:
       return {
         label: "AUDIT REJECTED",
-        bg: "bg-solar-base01/15",
-        text: "text-solar-base01",
-        border: "border-solar-base01",
+        bg: "bg-cyber-surface",
+        text: "text-cyber-muted",
+        border: "border-cyber-border",
         desc: "Settled: 100% Escrow refunded to project owner",
+        glow: "",
       };
     case 7:
       return {
         label: "CANCELLED",
-        bg: "bg-solar-base01/10",
-        text: "text-solar-base01",
-        border: "border-solar-base01",
+        bg: "bg-cyber-surface",
+        text: "text-cyber-subtle",
+        border: "border-cyber-border",
         desc: "Bounty cancelled and reclaimed by owner",
+        glow: "",
       };
     default:
       return {
         label: "UNKNOWN",
-        bg: "bg-solar-base2",
-        text: "text-solar-base00",
-        border: "border-solar-base1",
+        bg: "bg-cyber-surface",
+        text: "text-cyber-subtle",
+        border: "border-cyber-border",
         desc: "Unknown status",
+        glow: "",
       };
   }
 }
 
-export function getVerdictDisplay(verdict: string): { label: string; text: string; bg: string; border: string; payoutRatio: string } {
+export function getVerdictDisplay(verdict: string): { label: string; text: string; bg: string; border: string; payoutRatio: string; severityTag: string } {
   const v = (verdict || "").toUpperCase().trim();
   if (v === "AUDIT_PASSED") {
     return {
-      label: "AUDIT PASSED (100% Payout)",
-      text: "text-solar-green",
-      bg: "bg-solar-green/15",
-      border: "border-solar-green",
+      label: "CRITICAL SEVERITY VERIFIED (100% Payout)",
+      text: "text-neon-emerald",
+      bg: "bg-neon-emerald/10",
+      border: "border-neon-emerald/40",
       payoutRatio: "100% Auditor / 0% Owner",
+      severityTag: "CRITICAL (CVSS 9.0 - 10.0)",
     };
   }
   if (v === "PARTIAL_APPROVAL") {
     return {
-      label: "PARTIAL APPROVAL (40% Payout)",
-      text: "text-solar-yellow",
-      bg: "bg-solar-yellow/15",
-      border: "border-solar-yellow",
+      label: "MEDIUM SEVERITY VERIFIED (40% Payout)",
+      text: "text-neon-amber",
+      bg: "bg-neon-amber/10",
+      border: "border-neon-amber/40",
       payoutRatio: "40% Auditor / 60% Refunded to Owner",
+      severityTag: "MEDIUM (CVSS 4.0 - 6.9)",
     };
   }
   if (v === "AUDIT_REJECTED") {
     return {
-      label: "AUDIT REJECTED (0% Payout)",
-      text: "text-solar-red",
-      bg: "bg-solar-red/15",
-      border: "border-solar-red",
+      label: "INVALID / FALSE POSITIVE (0% Payout)",
+      text: "text-neon-crimson",
+      bg: "bg-neon-crimson/10",
+      border: "border-neon-crimson/40",
       payoutRatio: "0% Auditor / 100% Refunded to Owner",
+      severityTag: "REJECTED (LINTER SPAM / UNVERIFIED)",
     };
   }
   if (v === "ESCALATE") {
     return {
       label: "ESCALATED TO APPELLATE COURT",
-      text: "text-solar-orange",
-      bg: "bg-solar-orange/15",
-      border: "border-solar-orange",
-      payoutRatio: "Appellate evaluation required",
+      text: "text-neon-cyan",
+      bg: "bg-neon-cyan/10",
+      border: "border-neon-cyan/40",
+      payoutRatio: "Awaiting Appellate Consensus",
+      severityTag: "ESCALATED FOR COURT REVIEW",
     };
   }
   if (v === "CANCELLED") {
     return {
       label: "CANCELLED",
-      text: "text-solar-base01",
-      bg: "bg-solar-base01/15",
-      border: "border-solar-base01",
+      text: "text-cyber-subtle",
+      bg: "bg-cyber-surface",
+      border: "border-cyber-border",
       payoutRatio: "100% Reclaimed by Owner",
+      severityTag: "TERMINATED",
     };
   }
   return {
-    label: "PENDING REVIEW",
-    text: "text-solar-cyan",
-    bg: "bg-solar-cyan/15",
-    border: "border-solar-cyan",
+    label: "PENDING AI CONSENSUS",
+    text: "text-neon-cyan",
+    bg: "bg-neon-cyan/10",
+    border: "border-neon-cyan/40",
     payoutRatio: "Locked in Escrow",
+    severityTag: "AWAITING TRIAGING",
   };
 }

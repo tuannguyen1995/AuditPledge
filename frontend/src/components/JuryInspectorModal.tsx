@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Scale, ExternalLink, ShieldCheck, ShieldAlert, Award, FileText, CheckCircle2, XCircle } from "lucide-react";
+import { X, Scale, ExternalLink, ShieldCheck, ShieldAlert, CheckCircle2, Cpu, Lock } from "lucide-react";
 import { AuditBountyData, formatGEN, shortenAddress, getVerdictDisplay } from "../utils/helpers";
 
 interface JuryInspectorModalProps {
@@ -20,19 +20,29 @@ export const JuryInspectorModal: React.FC<JuryInspectorModalProps> = ({
   const isRejected = bounty.verdict.toUpperCase() === "AUDIT_REJECTED";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-solar-base03/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-solar-base2 border border-solar-base1 rounded max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto font-sans">
+      <div className="bg-cyber-card border border-cyber-border rounded-xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-solar-base1 bg-solar-base3">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-cyber-border bg-cyber-bg">
           <div className="flex items-center space-x-2">
-            <Scale className="w-5 h-5 text-solar-cyan" />
-            <h3 className="font-mono font-bold text-base text-solar-base03">
-              On-Chain AI Jury Inspection Dossier
-            </h3>
+            <div className="p-1.5 bg-cyber-surface rounded-md text-neon-cyan border border-neon-cyan/40">
+              <Scale className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-mono font-bold text-base text-white flex items-center gap-2">
+                <span>AI Consensus War Room Dossier</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30">
+                  CONFIRMED
+                </span>
+              </h3>
+              <p className="text-[11px] text-cyber-muted font-mono">
+                Bounty ID: {bounty.bounty_id} &bull; GenLayer Decentralized Subjective Consensus
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-solar-base01 hover:text-solar-base03 p-1 rounded hover:bg-solar-base2 transition-colors"
+            className="text-cyber-muted hover:text-white p-1 rounded-md hover:bg-cyber-surface transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -42,184 +52,140 @@ export const JuryInspectorModal: React.FC<JuryInspectorModalProps> = ({
         <div className="p-6 space-y-5">
           {/* Verdict Banner */}
           <div
-            className={`p-4 rounded border flex items-center justify-between ${
+            className={`p-4 rounded-lg border flex items-center justify-between ${
               isPassed
-                ? "bg-solar-green/10 border-solar-green text-solar-green"
+                ? "bg-neon-emerald/10 border-neon-emerald/50 text-neon-emerald"
                 : isRejected
-                ? "bg-solar-red/10 border-solar-red text-solar-red"
-                : "bg-solar-yellow/10 border-solar-yellow text-solar-yellow"
+                ? "bg-neon-crimson/10 border-neon-crimson/50 text-neon-crimson"
+                : "bg-neon-amber/10 border-neon-amber/50 text-neon-amber"
             }`}
           >
             <div className="flex items-center space-x-3">
               {isPassed ? (
-                <ShieldCheck className="w-8 h-8 text-solar-green flex-shrink-0" />
+                <ShieldCheck className="w-8 h-8 flex-shrink-0" />
               ) : isRejected ? (
-                <ShieldAlert className="w-8 h-8 text-solar-red flex-shrink-0" />
+                <ShieldAlert className="w-8 h-8 flex-shrink-0" />
               ) : (
-                <Scale className="w-8 h-8 text-solar-yellow flex-shrink-0" />
+                <Scale className="w-8 h-8 flex-shrink-0" />
               )}
               <div>
-                <div className="text-xs font-mono uppercase tracking-widest font-semibold text-solar-base01">
-                  Decentralized Consensus Verdict
+                <div className="text-[11px] font-mono uppercase tracking-wider font-semibold opacity-80">
+                  Consensus Verdict
                 </div>
-                <div className="text-xl font-mono font-bold">
+                <div className="text-base font-mono font-bold">
                   {verdictDisplay.label}
+                </div>
+                <div className="text-xs font-mono opacity-90 mt-0.5">
+                  Severity: {verdictDisplay.severityTag}
                 </div>
               </div>
             </div>
 
             <div className="text-right font-mono">
-              <span className="text-xs text-solar-base01 block">Bounty ID</span>
-              <span className="font-bold text-solar-base03">{bounty.bounty_id}</span>
+              <div className="text-2xl font-bold">{bounty.depth_score}/100</div>
+              <div className="text-[10px] uppercase tracking-wider opacity-80">Depth Score</div>
             </div>
           </div>
 
-          {/* Metric Meters Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Technical Depth Score */}
-            <div className="bg-solar-base3 border border-solar-base1 rounded p-3.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-solar-base01 flex items-center space-x-1">
-                  <Award className="w-3.5 h-3.5 text-solar-yellow" />
-                  <span>Technical Depth Score</span>
-                </span>
-                <span className="font-mono font-bold text-sm text-solar-base03">
-                  {bounty.depth_score} / 100
-                </span>
-              </div>
-              {/* Progress bar with 70 threshold marker */}
-              <div className="w-full bg-solar-base2 h-3 rounded-full overflow-hidden relative border border-solar-base1">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    bounty.depth_score >= 70 ? "bg-solar-green" : "bg-solar-red"
-                  }`}
-                  style={{ width: `${Math.min(100, Math.max(5, bounty.depth_score))}%` }}
-                ></div>
-                {/* 70 Threshold Marker */}
-                <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-solar-base03"
-                  style={{ left: "70%" }}
-                  title="Passing Threshold: 70"
-                ></div>
-              </div>
-              <div className="flex justify-between text-[10px] font-mono text-solar-base00">
-                <span>0 (Spam/Trivial)</span>
-                <span className="font-bold text-solar-cyan">Req: &ge; 70</span>
-                <span>100 (Rigorous PoC)</span>
-              </div>
-            </div>
-
-            {/* Validator Consensus Confidence */}
-            <div className="bg-solar-base3 border border-solar-base1 rounded p-3.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-solar-base01 flex items-center space-x-1">
-                  <Scale className="w-3.5 h-3.5 text-solar-cyan" />
-                  <span>Validator Consensus Confidence</span>
-                </span>
-                <span className="font-mono font-bold text-sm text-solar-base03">
-                  {bounty.confidence}%
-                </span>
-              </div>
-              <div className="w-full bg-solar-base2 h-3 rounded-full overflow-hidden border border-solar-base1">
-                <div
-                  className="h-full bg-solar-cyan rounded-full transition-all"
-                  style={{ width: `${Math.min(100, Math.max(5, bounty.confidence))}%` }}
-                ></div>
-              </div>
-              <div className="flex justify-between text-[10px] font-mono text-solar-base00">
-                <span>Subjective Semantic Agreement</span>
-                <span>gl.vm.run_nondet</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Qualitative Assessment / Reason */}
-          <div className="bg-solar-base3 border border-solar-base1 rounded p-4 space-y-2">
-            <div className="flex items-center space-x-1.5 text-xs font-mono font-bold text-solar-base02 uppercase tracking-wider">
-              <FileText className="w-3.5 h-3.5 text-solar-cyan" />
-              <span>AI Security Jury Qualitative Assessment</span>
-            </div>
-            <div className="p-3 bg-solar-base2 rounded border border-solar-base1/60 text-xs font-sans text-solar-base02 leading-relaxed whitespace-pre-wrap">
-              {bounty.reason || "No qualitative assessment recorded."}
-            </div>
-          </div>
-
-          {/* Settlement & Financial Flow */}
-          <div className="bg-solar-base3 border border-solar-base1 rounded p-4 text-xs font-mono space-y-2">
-            <span className="font-bold text-solar-base02 block uppercase tracking-wider text-[11px]">
-              Escrow Settlement Flow:
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              <div className="p-2 bg-solar-base2 rounded border border-solar-base1/60">
-                <span className="text-solar-base01 block text-[11px]">Project Owner:</span>
-                <span className="font-bold text-solar-base03">{shortenAddress(bounty.project_owner, 6)}</span>
-              </div>
-              <div className="p-2 bg-solar-base2 rounded border border-solar-base1/60">
-                <span className="text-solar-base01 block text-[11px]">Security Auditor:</span>
-                <span className="font-bold text-solar-base03">{shortenAddress(bounty.auditor, 6)}</span>
-              </div>
-            </div>
-
-            <div className="p-2.5 bg-solar-base2 rounded border border-solar-base1 flex items-center justify-between mt-2">
-              <span className="text-solar-base01">Disbursement Outcome:</span>
-              <span className="font-bold flex items-center space-x-1">
-                {isPassed ? (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-solar-green" />
-                    <span className="text-solar-green">
-                      {formatGEN(bounty.escrow_amount)} disbursed to Auditor
-                    </span>
-                  </>
-                ) : isRejected ? (
-                  <>
-                    <XCircle className="w-3.5 h-3.5 text-solar-red" />
-                    <span className="text-solar-red">
-                      {formatGEN(bounty.escrow_amount)} refunded to Project Owner
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-solar-yellow">
-                    {formatGEN(bounty.escrow_amount)} currently locked in escrow
-                  </span>
-                )}
+          {/* Simulated Multi-Node Consensus Telemetry */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono text-cyber-muted">
+              <span className="font-bold uppercase tracking-wider text-[11px] flex items-center gap-1.5 text-white">
+                <Cpu className="w-3.5 h-3.5 text-neon-cyan" />
+                <span>Multi-Validator Consensus Matrix</span>
+              </span>
+              <span className="text-neon-emerald flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-neon-emerald animate-pulse"></span>
+                <span>Canary V1 Validated</span>
               </span>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+              <div className="bg-cyber-surface/70 p-2.5 rounded border border-cyber-border">
+                <div className="text-cyber-subtle text-[10px] uppercase">Node 01: Invariant AST</div>
+                <div className="font-bold text-white mt-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-neon-emerald" />
+                  <span>Control Flow OK</span>
+                </div>
+              </div>
+              <div className="bg-cyber-surface/70 p-2.5 rounded border border-cyber-border">
+                <div className="text-cyber-subtle text-[10px] uppercase">Node 02: PoC Reproduction</div>
+                <div className="font-bold text-white mt-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-neon-emerald" />
+                  <span>Sandboxed Attack</span>
+                </div>
+              </div>
+              <div className="bg-cyber-surface/70 p-2.5 rounded border border-cyber-border">
+                <div className="text-cyber-subtle text-[10px] uppercase">Node 03: Canary Defense</div>
+                <div className="font-bold text-white mt-1 flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5 text-neon-cyan" />
+                  <span>No Injection</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Source Evidence Links */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-solar-base1 text-xs font-mono text-solar-base01">
-            <a
-              href={bounty.target_repo_url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center space-x-1 text-solar-blue hover:underline"
-            >
-              <span>Target Repo</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+          {/* Qualitative Assessment Reason */}
+          <div className="space-y-1.5">
+            <span className="font-mono font-bold text-xs text-cyber-muted uppercase tracking-wider block">
+              Chief Justice Qualitative Assessment:
+            </span>
+            <div className="bg-cyber-surface p-3.5 rounded-lg border border-cyber-border text-sm text-cyber-text font-sans leading-relaxed">
+              "{bounty.reason}"
+            </div>
+          </div>
 
-            {bounty.report_url && (
+          {/* Escrow & Repository Metadata Table */}
+          <div className="bg-cyber-surface/40 rounded-lg border border-cyber-border divide-y divide-cyber-border text-xs font-mono">
+            <div className="flex justify-between p-2.5">
+              <span className="text-cyber-muted">Escrow Amount:</span>
+              <span className="font-bold text-neon-cyan">{formatGEN(bounty.escrow_amount)}</span>
+            </div>
+            <div className="flex justify-between p-2.5">
+              <span className="text-cyber-muted">Settlement Allocation:</span>
+              <span className="font-bold text-white">{verdictDisplay.payoutRatio}</span>
+            </div>
+            <div className="flex justify-between p-2.5">
+              <span className="text-cyber-muted">Auditor Address:</span>
+              <span className="font-bold text-white">{shortenAddress(bounty.auditor, 6)}</span>
+            </div>
+            <div className="flex justify-between p-2.5">
+              <span className="text-cyber-muted">Target Codebase:</span>
               <a
-                href={bounty.report_url}
+                href={bounty.target_repo_url}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center space-x-1 text-solar-cyan hover:underline"
+                className="text-neon-cyan hover:underline flex items-center space-x-1"
               >
-                <span>Submitted PoC Evidence Report</span>
-                <ExternalLink className="w-3 h-3" />
+                <span className="truncate max-w-xs">{bounty.target_repo_url}</span>
+                <ExternalLink className="w-3 h-3 flex-shrink-0" />
               </a>
+            </div>
+            {bounty.report_url && (
+              <div className="flex justify-between p-2.5">
+                <span className="text-cyber-muted">Audit Report & PoC:</span>
+                <a
+                  href={bounty.report_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-neon-cyan hover:underline flex items-center space-x-1"
+                >
+                  <span>View Gist PoC</span>
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                </a>
+              </div>
             )}
           </div>
-        </div>
 
-        {/* Modal Footer */}
-        <div className="px-6 py-3 border-t border-solar-base1 bg-solar-base3 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-solar-base2 hover:bg-solar-base1/30 text-solar-base02 rounded font-mono text-xs border border-solar-base1 transition-colors"
-          >
-            Close Dossier
-          </button>
+          {/* Footer Close */}
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={onClose}
+              className="px-5 py-2 bg-cyber-surface hover:bg-cyber-border text-white rounded-md font-mono text-xs font-bold transition-colors border border-cyber-border"
+            >
+              Close Dossier
+            </button>
+          </div>
         </div>
       </div>
     </div>

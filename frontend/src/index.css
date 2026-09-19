@@ -4,40 +4,49 @@
 
 @layer base {
   body {
-    background-color: #FDF6E3;
-    color: #073642;
+    background-color: #080C14;
+    color: #F1F5F9;
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   }
 }
 
-/* Custom terminal scrollbars */
+/* Cyber dark scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #EEE8D5;
+  background: #0D1424;
 }
 ::-webkit-scrollbar-thumb {
-  background: #93A1A1;
+  background: #1E293B;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #657B83;
+  background: #06B6D4;
 }
 
-/* Scanline and glowing terminal badge effect */
-.terminal-glow {
-  box-shadow: 0 0 10px rgba(42, 161, 152, 0.25);
+/* Cyber Glow Effects */
+.cyber-glow-cyan {
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
 }
 
-.terminal-glow-red {
-  box-shadow: 0 0 10px rgba(220, 50, 47, 0.25);
+.cyber-glow-emerald {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
 }
 
-.terminal-glow-green {
-  box-shadow: 0 0 10px rgba(133, 153, 0, 0.25);
+.cyber-glow-crimson {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
 }
 
-.terminal-glow-amber {
-  box-shadow: 0 0 10px rgba(181, 137, 0, 0.25);
+.cyber-glow-amber {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
+}
+
+/* Grid Background Pattern */
+.bg-grid-cyber {
+  background-size: 30px 30px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
 }

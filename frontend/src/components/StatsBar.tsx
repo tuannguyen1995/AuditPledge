@@ -1,5 +1,5 @@
 import React from "react";
-import { Lock, CheckCircle2, FileText, Cpu, RefreshCw } from "lucide-react";
+import { Lock, RefreshCw, Scale, ShieldCheck, Activity, Cpu } from "lucide-react";
 import { formatGEN } from "../utils/helpers";
 
 interface StatsBarProps {
@@ -18,80 +18,85 @@ export const StatsBar: React.FC<StatsBarProps> = ({
   onRefresh,
 }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-6">
-      {/* Stat 1: Total Escrow Locked */}
-      <div className="bg-solar-base2 border border-solar-base1 rounded p-4 relative overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-mono uppercase tracking-wider text-solar-base01">
-            Total Escrow Locked
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 font-mono">
+      {/* Stat 1: Total Escrow Secured */}
+      <div className="bg-cyber-card border border-cyber-border hover:border-neon-cyan/40 rounded-lg p-4 transition-all shadow-md group">
+        <div className="flex items-center justify-between text-xs text-cyber-muted mb-1">
+          <span className="flex items-center space-x-1.5 uppercase tracking-wider text-[11px] font-bold">
+            <Lock className="w-3.5 h-3.5 text-neon-cyan group-hover:rotate-12 transition-transform" />
+            <span>Escrow Locked</span>
           </span>
-          <Lock className="w-4 h-4 text-solar-cyan" />
-        </div>
-        <div className="mt-2 flex items-baseline justify-between">
-          <span className="text-2xl font-mono font-bold text-solar-base03">
-            {formatGEN(totalEscrowLocked)}
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-cyan/10 text-neon-cyan font-bold border border-neon-cyan/20">
+            TVL
           </span>
         </div>
-        <p className="text-[11px] text-solar-base00 mt-1">Guaranteed on-chain security bounty</p>
+        <div className="text-xl font-bold text-white tracking-tight">
+          {formatGEN(totalEscrowLocked)}
+        </div>
+        <p className="text-[11px] text-cyber-subtle mt-1 font-sans">
+          GEN assets locked in autonomous custody
+        </p>
       </div>
 
-      {/* Stat 2: Audits Resolved */}
-      <div className="bg-solar-base2 border border-solar-base1 rounded p-4 relative overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-mono uppercase tracking-wider text-solar-base01">
-            Audits Resolved
+      {/* Stat 2: Settled Security Audits */}
+      <div className="bg-cyber-card border border-cyber-border hover:border-neon-emerald/40 rounded-lg p-4 transition-all shadow-md group">
+        <div className="flex items-center justify-between text-xs text-cyber-muted mb-1">
+          <span className="flex items-center space-x-1.5 uppercase tracking-wider text-[11px] font-bold">
+            <Scale className="w-3.5 h-3.5 text-neon-emerald group-hover:scale-110 transition-transform" />
+            <span>Settled Audits</span>
           </span>
-          <CheckCircle2 className="w-4 h-4 text-solar-green" />
-        </div>
-        <div className="mt-2 flex items-baseline justify-between">
-          <span className="text-2xl font-mono font-bold text-solar-green">
-            {totalAuditsResolved}
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-emerald/10 text-neon-emerald font-bold border border-neon-emerald/20">
+            VERIFIED
           </span>
         </div>
-        <p className="text-[11px] text-solar-base00 mt-1">Evaluated by decentralized AI consensus</p>
+        <div className="text-xl font-bold text-neon-emerald tracking-tight">
+          {totalAuditsResolved} Disclosures
+        </div>
+        <p className="text-[11px] text-cyber-subtle mt-1 font-sans">
+          Adjudicated via AI consensus & appeals
+        </p>
       </div>
 
-      {/* Stat 3: Total Bounties */}
-      <div className="bg-solar-base2 border border-solar-base1 rounded p-4 relative overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-mono uppercase tracking-wider text-solar-base01">
-            Total Escrow Pools
+      {/* Stat 3: Active Escrow Pools */}
+      <div className="bg-cyber-card border border-cyber-border hover:border-neon-amber/40 rounded-lg p-4 transition-all shadow-md group">
+        <div className="flex items-center justify-between text-xs text-cyber-muted mb-1">
+          <span className="flex items-center space-x-1.5 uppercase tracking-wider text-[11px] font-bold">
+            <Activity className="w-3.5 h-3.5 text-neon-amber group-hover:scale-110 transition-transform" />
+            <span>Escrow Pools</span>
           </span>
-          <FileText className="w-4 h-4 text-solar-yellow" />
+          <button
+            onClick={onRefresh}
+            disabled={isLoading}
+            className="text-[11px] text-cyber-muted hover:text-white flex items-center space-x-1 px-1.5 py-0.5 rounded hover:bg-cyber-surface transition-colors disabled:opacity-50"
+            title="Refresh on-chain state"
+          >
+            <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin text-neon-cyan" : ""}`} />
+            <span className="text-[10px]">SYNC</span>
+          </button>
         </div>
-        <div className="mt-2 flex items-baseline justify-between">
-          <span className="text-2xl font-mono font-bold text-solar-base03">
-            {totalBounties}
-          </span>
+        <div className="text-xl font-bold text-white tracking-tight">
+          {totalBounties} Repositories
         </div>
-        <p className="text-[11px] text-solar-base00 mt-1">Registered smart contract repositories</p>
+        <p className="text-[11px] text-cyber-subtle mt-1 font-sans">
+          Bounties deployed on GenLayer
+        </p>
       </div>
 
-      {/* Stat 4: Consensus Engine Info */}
-      <div className="bg-solar-base2 border border-solar-base1 rounded p-4 relative overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-mono uppercase tracking-wider text-solar-base01">
-            Consensus Engine
+      {/* Stat 4: Canary Defense & Consensus Telemetry */}
+      <div className="bg-cyber-card border border-cyber-border hover:border-neon-cyan/40 rounded-lg p-4 transition-all shadow-md">
+        <div className="flex items-center justify-between text-xs text-cyber-muted mb-1">
+          <span className="flex items-center space-x-1.5 uppercase tracking-wider text-[11px] font-bold">
+            <Cpu className="w-3.5 h-3.5 text-neon-cyan" />
+            <span>Canary Defense</span>
           </span>
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={onRefresh}
-              disabled={isLoading}
-              title="Refresh on-chain state"
-              className="p-1 text-solar-base01 hover:text-solar-cyan rounded transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-solar-cyan" : ""}`} />
-            </button>
-            <Cpu className="w-4 h-4 text-solar-cyan" />
-          </div>
+          <span className="w-2 h-2 rounded-full bg-neon-emerald animate-pulse"></span>
         </div>
-        <div className="mt-2 flex items-baseline justify-between">
-          <span className="text-sm font-mono font-bold text-solar-cyan">
-            gl.vm.run_nondet
-          </span>
+        <div className="text-sm font-bold text-white flex items-center space-x-1.5">
+          <ShieldCheck className="w-4 h-4 text-neon-emerald" />
+          <span className="text-xs">IMMUNE TO PROMPT-INJECTION</span>
         </div>
-        <p className="text-[11px] text-solar-base00 mt-1">
-          Web Render & Subjective Semantic Verdict
+        <p className="text-[11px] text-cyber-subtle mt-1 font-sans">
+          Multi-agent canary token verification
         </p>
       </div>
     </div>
