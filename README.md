@@ -1,9 +1,13 @@
-﻿# AuditPledge: Autonomous Multi-Auditor Consensus & Vulnerability Disclosure Escrow
+# AuditPledge: Autonomous Multi-Auditor Consensus & Vulnerability Disclosure Escrow
 
+[![Live Deployment](https://img.shields.io/badge/Live%20dApp-auditpledge.vercel.app-2AA198?style=flat-square&logo=vercel)](https://auditpledge.vercel.app)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-tuannguyen1995%2FAuditPledge-073642?style=flat-square&logo=github)](https://github.com/tuannguyen1995/AuditPledge)
 [![GenLayer Studionet](https://img.shields.io/badge/Network-GenLayer%20studionet%20(61999)-2AA198?style=flat-square)](https://studio.genlayer.com)
 [![License](https://img.shields.io/badge/License-MIT-859900?style=flat-square)](LICENSE)
 [![Theme](https://img.shields.io/badge/UI%20Theme-Solarized%20Defense%20Terminal-B58900?style=flat-square)](#-brand--ui-design-system-solarized-defense-terminal)
 
+> **Live dApp URL**: [https://auditpledge.vercel.app](https://auditpledge.vercel.app)  
+> **GitHub Repository**: [https://github.com/tuannguyen1995/AuditPledge](https://github.com/tuannguyen1995/AuditPledge)  
 > **Track**: Agentic Economy Infrastructure / Subjective Consensus / Security  
 > **Target Network**: GenLayer `studionet` (Chain ID: `61999` / `0xF1EF`, RPC: `https://studio.genlayer.com/api`)
 
