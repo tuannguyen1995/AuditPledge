@@ -206,6 +206,12 @@ export const BountyCard: React.FC<BountyCardProps> = ({
             <span className="font-bold text-neon-crimson block mb-0.5">Dispute Justification:</span>
             <p className="font-sans italic text-cyber-muted">{bounty.dispute_reason || bounty.reason}</p>
           </div>
+          {bounty.dispute_bond && BigInt(bounty.dispute_bond) > BigInt(0) && (
+            <div className="flex items-center justify-between text-[11px] bg-cyber-surface px-2 py-1 rounded border border-neon-amber/30">
+              <span className="text-cyber-muted">Staked Anti-Griefing Bond:</span>
+              <span className="font-bold text-neon-amber">{formatGEN(bounty.dispute_bond)}</span>
+            </div>
+          )}
           {bounty.appeal_url && (
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-cyber-muted">Appellate Counter-Evidence:</span>

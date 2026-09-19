@@ -53,7 +53,7 @@ export const AUDIT_PLEDGE_ABI = [
       { name: "dispute_reason", type: "string" },
     ],
     outputs: [],
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
   },
   {
     name: "finalize_settlement",

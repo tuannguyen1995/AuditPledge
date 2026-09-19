@@ -361,20 +361,20 @@ export function App() {
     }
   };
 
-  // Action: Raise Dispute (Real On-Chain Symmetrical Dispute)
-  const handleRaiseDispute = async (bountyId: string, reason: string) => {
+  // Action: Raise Dispute (Real On-Chain Symmetrical Dispute with 10% Anti-Griefing Bond)
+  const handleRaiseDispute = async (bountyId: string, reason: string, bondWei: bigint = BigInt(0)) => {
     setIsActionLoading(true);
     try {
-      setNotice({ type: "info", msg: `Submitting dispute challenge for ${bountyId} on-chain...` });
+      setNotice({ type: "info", msg: `Staking 10% dispute bond & submitting dispute challenge for ${bountyId} on-chain...` });
 
-      const txHash = await sendContractTx("raise_dispute", [bountyId, reason]);
-      setNotice({ type: "info", msg: `Dispute challenge tx submitted: ${txHash.slice(0, 10)}... Moving to Appellate Court...` });
+      const txHash = await sendContractTx("raise_dispute", [bountyId, reason], bondWei);
+      setNotice({ type: "info", msg: `Dispute bond staked & challenge tx submitted: ${txHash.slice(0, 10)}... Moving to Appellate Court...` });
 
       await new Promise((resolve) => setTimeout(resolve, 3500));
       await refreshOnChainData();
       if (account) await fetchBalance(account);
 
-      setNotice({ type: "success", msg: `Dispute opened on-chain! Moved to Appellate Court. Tx: ${txHash.slice(0, 10)}...` });
+      setNotice({ type: "success", msg: `Dispute opened on-chain with 10% bond staked! Moved to Appellate Court. Tx: ${txHash.slice(0, 10)}...` });
       setDisputeModalState({ isOpen: false, bounty: null, mode: "DISPUTE" });
     } catch (err: any) {
       console.error("Raise dispute error:", err);

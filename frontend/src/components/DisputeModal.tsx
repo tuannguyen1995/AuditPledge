@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { X, AlertTriangle, Scale, ShieldAlert, Send } from "lucide-react";
-import { AuditBountyData } from "../utils/helpers";
+import { X, AlertTriangle, Scale, ShieldAlert, Send, Coins } from "lucide-react";
+import { AuditBountyData, formatGEN } from "../utils/helpers";
 
 interface DisputeModalProps {
   isOpen: boolean;
   onClose: () => void;
   bounty: AuditBountyData | null;
   mode: "DISPUTE" | "APPEAL";
-  onSubmitDispute: (bountyId: string, reason: string) => Promise<void>;
+  onSubmitDispute: (bountyId: string, reason: string, bondWei: bigint) => Promise<void>;
   onSubmitAppeal: (bountyId: string, appealUrl: string) => Promise<void>;
   isSubmitting: boolean;
 }
@@ -30,6 +30,11 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
   const isOwnerDispute = bounty.status === 2; // Provisional pass challenge
   const isAuditorDispute = bounty.status === 3; // Provisional reject challenge
 
+  // Calculate 10% anti-griefing dispute bond (min 1 wei)
+  const escrowWei = BigInt(bounty.escrow_amount || "0");
+  const calculatedBond = escrowWei / BigInt(10);
+  const minBondWei = calculatedBond > BigInt(0) ? calculatedBond : BigInt(1);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -40,7 +45,7 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
         return;
       }
       try {
-        await onSubmitDispute(bounty.bounty_id, reason.trim());
+        await onSubmitDispute(bounty.bounty_id, reason.trim(), minBondWei);
         onClose();
       } catch (err: any) {
         setError(err?.message || "Failed to raise dispute.");
@@ -130,6 +135,23 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
               <p className="text-[11px] text-cyber-subtle mt-1">
                 Halts disbursement immediately and elevates this escrow to the On-Chain Appellate Security Court.
               </p>
+
+              {/* 10% Anti-Griefing Bond Notice */}
+              <div className="mt-3 p-3 bg-neon-amber/10 border border-neon-amber/40 rounded-lg flex items-start space-x-2.5">
+                <Coins className="w-5 h-5 text-neon-amber flex-shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-mono font-bold text-white">Required Anti-Griefing Bond:</span>
+                    <span className="font-mono font-bold text-neon-amber bg-neon-amber/20 px-2 py-0.5 rounded">
+                      {formatGEN(minBondWei)} (10%)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-cyber-muted leading-relaxed">
+                    To prevent malicious griefing and freezing of legitimate funds, raising a dispute requires a 10% security bond deposit.
+                    <span className="text-neon-emerald font-semibold"> If your dispute is upheld, 100% of this bond is refunded to you.</span> If deemed frivolous, the bond is awarded to the counterparty.
+                  </p>
+                </div>
+              </div>
             </div>
           ) : (
             <div>
