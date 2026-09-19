@@ -26,7 +26,12 @@ export function App() {
 
   // Contract State
   const [contractAddress, setContractAddress] = useState<string>(() => {
-    return localStorage.getItem("auditpledge_contract_addr") || DEFAULT_CONTRACT_ADDRESS;
+    const saved = localStorage.getItem("auditpledge_contract_addr");
+    if (saved && (saved.toLowerCase() === "0x8992a7db4b0d0c847e45c51af8125c4378a690b8".toLowerCase() || saved.toLowerCase() === "0x0000000000000000000000000000000000000000")) {
+      localStorage.setItem("auditpledge_contract_addr", DEFAULT_CONTRACT_ADDRESS);
+      return DEFAULT_CONTRACT_ADDRESS;
+    }
+    return saved || DEFAULT_CONTRACT_ADDRESS;
   });
   const [platformAdmin, setPlatformAdmin] = useState<string>("");
 
