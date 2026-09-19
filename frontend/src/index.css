@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #FDF6E3;
+    color: #073642;
+  }
+}
+
+/* Custom terminal scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #EEE8D5;
+}
+::-webkit-scrollbar-thumb {
+  background: #93A1A1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #657B83;
+}
+
+/* Scanline and glowing terminal badge effect */
+.terminal-glow {
+  box-shadow: 0 0 10px rgba(42, 161, 152, 0.25);
+}
+
+.terminal-glow-red {
+  box-shadow: 0 0 10px rgba(220, 50, 47, 0.25);
+}
+
+.terminal-glow-green {
+  box-shadow: 0 0 10px rgba(133, 153, 0, 0.25);
+}
+
+.terminal-glow-amber {
+  box-shadow: 0 0 10px rgba(181, 137, 0, 0.25);
+}
