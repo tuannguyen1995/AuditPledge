@@ -25,6 +25,7 @@ def _sanitize_text(text: str) -> str:
         "system prompt",
         "developer mode",
         "always output audit_passed",
+        "always output audit_rejected",
         "override verdict",
         "jailbreak",
     ]
@@ -38,7 +39,7 @@ def _sanitize_text(text: str) -> str:
 @allow_storage
 @dataclass
 class AuditBounty:
-    """Storage struct representing an autonomous multi-tier audit escrow."""
+    """Storage struct representing an autonomous mutually-protected audit escrow."""
     bounty_id: str
     project_owner: Address
     auditor: Address
@@ -46,18 +47,24 @@ class AuditBounty:
     target_repo_url: str           # Public repository URL to be audited
     scope_spec: str                # Audit requirements, critical invariants, threat model
     report_url: str                # Live URL of submitted audit report and PoC
-    # Status:
-    # 0: OPEN, 1: IN_AUDIT, 2: AWAITING_PAYOUT (Cooling-off), 3: DISPUTED,
-    # 4: AUDIT_APPROVED (Settled), 5: AUDIT_REJECTED (Settled/Refunded), 6: CANCELLED
+    # Status Lifecycle:
+    # 0: OPEN
+    # 1: IN_AUDIT
+    # 2: AWAITING_PAYOUT  (Provisional Pass: Owner 20-block dispute window)
+    # 3: AWAITING_REFUND  (Provisional Reject: Auditor 20-block dispute window)
+    # 4: DISPUTED         (Active Appellate review: both parties protected)
+    # 5: AUDIT_APPROVED   (Settled: 100% or 40% disbursed to Auditor)
+    # 6: AUDIT_REJECTED   (Settled: 100% refunded to Project Owner)
+    # 7: CANCELLED        (Reclaimed by Project Owner)
     status: u8
-    verdict: str                   # "PENDING", "AUDIT_PASSED", "PARTIAL_APPROVAL", "AUDIT_REJECTED", "ESCALATE"
+    verdict: str                   # "PENDING", "AUDIT_PASSED", "PARTIAL_APPROVAL", "AUDIT_REJECTED", "ESCALATE", "CANCELLED"
     reason: str                    # Qualitative jury assessment of report validity
     confidence: u8                 # 0 - 100: Validator consensus confidence
     depth_score: u8                # 0 - 100: Technical depth, PoC quality, and remediation advice
     created_at_block: u256
     expires_at_block: u256         # Block counter when owner can reclaim if unclaimed
     audit_started_block: u256      # Block counter when report was submitted
-    payout_ready_at_block: u256    # Block counter when cooling-off window ends
+    payout_ready_at_block: u256    # Block counter when cooling-off challenge window ends
     disputed: bool
     dispute_reason: str
     appeal_url: str
@@ -65,7 +72,7 @@ class AuditBounty:
 
 class Contract(gl.Contract):
     """
-    AuditPledge: Autonomous Multi-Auditor Consensus, Dispute Court & Vulnerability Escrow
+    AuditPledge: Autonomous Mutually-Protected Audit Escrow & Decentralized Security Court
     Target Network: studionet (Chain ID: 61999)
     """
     bounties: TreeMap[str, AuditBounty]
@@ -87,6 +94,7 @@ class Contract(gl.Contract):
     def create_audit_bounty(self, target_repo_url: str, scope_spec: str, duration_blocks: int) -> str:
         """
         [ROLE: Project Owner] Locks GEN bounty in escrow, setting audit scope and invariants.
+        Protection: Escrow amount is safely held on-chain; owner can set expiration duration.
         """
         escrow = bigint(gl.message.value)
         if escrow <= bigint(0):
@@ -140,7 +148,8 @@ class Contract(gl.Contract):
     def submit_audit_report(self, bounty_id: str, report_url: str) -> None:
         """
         [ROLE: Security Auditor] Auditor claims the bounty and submits public report/PoC URL.
-        Enforces strict RBAC: Project Owner cannot submit to their own bounty.
+        Protection: Project Owner cannot submit to their own bounty.
+        Once submitted, Owner cannot cancel or rugpull the bounty while evaluation is ongoing.
         """
         if bounty_id not in self.bounties:
             raise gl.UserError(f"Bounty {bounty_id} does not exist.")
@@ -149,7 +158,6 @@ class Contract(gl.Contract):
         if b.status != u8(0):
             raise gl.UserError(f"Bounty {bounty_id} is not open for submission.")
 
-        # RBAC Check
         if gl.message.sender_address == b.project_owner:
             raise gl.UserError("Project Owner cannot submit audit reports to their own bounty.")
 
@@ -168,12 +176,11 @@ class Contract(gl.Contract):
     def adjudicate_audit(self, bounty_id: str) -> None:
         """
         [ROLE: AI Security Jury Consensus]
-        Intelligent contract fetches target repo and audit report via gl.nondet.web.render,
-        applies anti-rugpull/anti-spam filters, and performs semantic consensus.
-        Graduated Settlement:
-          - AUDIT_PASSED (Depth >= 75): 100% Payout after cooling-off window.
-          - PARTIAL_APPROVAL (Depth 50-74): 40% Payout, 60% Refund after cooling-off window.
-          - AUDIT_REJECTED (Depth < 50): 100% Refunded immediately to Project Owner.
+        Fetches repository and report via gl.nondet.web.render and evaluates findings.
+        Symmetrical Mutual Protection:
+          - If Passed/Partial: Enters AWAITING_PAYOUT (20 blocks for Owner to challenge).
+          - If Rejected: Enters AWAITING_REFUND (20 blocks for Auditor to challenge).
+        Neither party is penalized immediately without a fair opportunity to review.
         """
         if bounty_id not in self.bounties:
             raise gl.UserError(f"Bounty {bounty_id} does not exist.")
@@ -318,7 +325,6 @@ Respond ONLY with valid JSON without markdown fences:
                 return False
 
             mine = _evaluate()
-            # Semantic Consensus: Compare Verdict equality
             return mine["verdict"] == leader["verdict"]
 
         res = gl.vm.run_nondet(leader_fn, validator_fn)
@@ -337,97 +343,109 @@ Respond ONLY with valid JSON without markdown fences:
         current_block = u256(int(self.bounty_counter))
 
         if verdict in ("AUDIT_PASSED", "PARTIAL_APPROVAL"):
-            # Enforce 24-hour / 20-block Cooling-Off Challenge Window
+            # Provisional Approval: 20-block window for Project Owner to challenge if invalid
             b.status = u8(2)  # AWAITING_PAYOUT
             b.payout_ready_at_block = current_block + u256(20)
-        elif verdict == "ESCALATE":
-            b.status = u8(3)  # DISPUTED / ESCALATED
+        elif verdict == "AUDIT_REJECTED":
+            # Provisional Rejection: 20-block window for Auditor to challenge if wrongly rejected
+            b.status = u8(3)  # AWAITING_REFUND
+            b.payout_ready_at_block = current_block + u256(20)
+        else:
+            # ESCALATE: Immediate arbitration
+            b.status = u8(4)  # DISPUTED
             b.disputed = True
             b.dispute_reason = "Escalated for appellate arbitration due to edge-case verification."
-        else:
-            # Immediate rejection & refund back to Project Owner
-            b.status = u8(5)  # AUDIT_REJECTED
-            escrow_val = b.escrow_amount
-            self.total_escrow_locked = self.total_escrow_locked - escrow_val
-            self.total_audits_resolved = self.total_audits_resolved + u32(1)
-            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
 
     @gl.public.write
     def raise_dispute(self, bounty_id: str, dispute_reason: str) -> None:
         """
-        [ROLE: Project Owner or Auditor]
-        Allows either party to dispute the AI verdict during the cooling-off window.
+        [ROLE: Symmetrical Dispute Right]
+        - If AWAITING_PAYOUT: Only Project Owner can dispute the approval.
+        - If AWAITING_REFUND: Only Security Auditor can dispute the rejection.
+        Ensures neither party is disadvantaged or cheated.
         """
         if bounty_id not in self.bounties:
             raise gl.UserError(f"Bounty {bounty_id} does not exist.")
 
         b = self.bounties[bounty_id]
-        if b.status != u8(2):
-            raise gl.UserError("Can only dispute bounties in AWAITING_PAYOUT cooling-off status.")
-
-        # RBAC Check: Only Owner or Auditor
         caller = gl.message.sender_address
-        if caller != b.project_owner and caller != b.auditor:
-            raise gl.UserError("Only the project owner or assigned auditor can raise a dispute.")
+
+        if b.status == u8(2):
+            # AWAITING_PAYOUT -> Project Owner can challenge
+            if caller != b.project_owner:
+                raise gl.UserError("Only the Project Owner can challenge a provisional approval.")
+            role_label = "PROJECT OWNER"
+        elif b.status == u8(3):
+            # AWAITING_REFUND -> Auditor can challenge
+            if caller != b.auditor:
+                raise gl.UserError("Only the Auditor can challenge a provisional rejection.")
+            role_label = "SECURITY AUDITOR"
+        else:
+            raise gl.UserError("Can only dispute bounties during the 20-block cooling-off window (AWAITING_PAYOUT or AWAITING_REFUND).")
 
         clean_reason = _sanitize_text(dispute_reason).strip()
         if not clean_reason or len(clean_reason) < 5:
             raise gl.UserError("Please provide a substantive dispute reason (at least 5 characters).")
 
-        b.status = u8(3)  # DISPUTED
+        b.status = u8(4)  # DISPUTED
         b.disputed = True
-        role_label = "OWNER" if caller == b.project_owner else "AUDITOR"
         b.dispute_reason = f"[{role_label} CHALLENGE]: {clean_reason}"
         b.reason = f"Dispute opened by {role_label}: {clean_reason} | Prior Assessment: {b.reason}"
 
     @gl.public.write
     def finalize_settlement(self, bounty_id: str) -> None:
         """
-        [PERMISSIONLESS / ANY ROLE]
-        Finalizes disbursement strictly AFTER the cooling-off dispute period has passed undisputed.
-        Settlement Matrix:
-          - AUDIT_PASSED: 100% to Auditor
-          - PARTIAL_APPROVAL: 40% to Auditor, 60% Refunded to Project Owner
+        [PERMISSIONLESS FINALIZATION]
+        Finalizes disbursement strictly AFTER the 20-block challenge window has passed undisputed.
+        - From AWAITING_PAYOUT: Disburses 100% (or 40% partial) to Auditor.
+        - From AWAITING_REFUND: Refunds 100% to Project Owner.
         """
         if bounty_id not in self.bounties:
             raise gl.UserError(f"Bounty {bounty_id} does not exist.")
 
         b = self.bounties[bounty_id]
-        if b.status != u8(2):
-            raise gl.UserError("Bounty is not awaiting payout or is currently under active dispute.")
+        if b.status not in (u8(2), u8(3)):
+            raise gl.UserError("Bounty is not awaiting settlement finalization or is currently under active dispute.")
 
         self.bounty_counter = self.bounty_counter + u64(1)
         current_block = u256(int(self.bounty_counter))
 
         if current_block < b.payout_ready_at_block:
-            raise gl.UserError("Cooling-off dispute period has not elapsed yet.")
+            raise gl.UserError("Cooling-off challenge period has not elapsed yet. Please wait.")
 
         escrow_val = b.escrow_amount
-        b.status = u8(4)  # AUDIT_APPROVED (Settled)
         self.total_escrow_locked = self.total_escrow_locked - escrow_val
         self.total_audits_resolved = self.total_audits_resolved + u32(1)
 
-        if b.verdict == "AUDIT_PASSED":
-            # 100% payout to auditor
-            gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val))
-        elif b.verdict == "PARTIAL_APPROVAL":
-            # 40% to auditor, 60% refund to owner
-            payout_auditor = (escrow_val * bigint(40)) // bigint(100)
-            refund_owner = escrow_val - payout_auditor
-            gl.get_contract_at(b.auditor).emit_transfer(value=u256(payout_auditor))
-            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund_owner))
+        if b.status == u8(2):
+            # Finalize Approval
+            b.status = u8(5)  # AUDIT_APPROVED
+            if b.verdict == "AUDIT_PASSED":
+                # 100% to auditor
+                gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val))
+            elif b.verdict == "PARTIAL_APPROVAL":
+                # 40% to auditor, 60% refund to owner
+                payout_auditor = (escrow_val * bigint(40)) // bigint(100)
+                refund_owner = escrow_val - payout_auditor
+                gl.get_contract_at(b.auditor).emit_transfer(value=u256(payout_auditor))
+                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund_owner))
+        elif b.status == u8(3):
+            # Finalize Rejection -> 100% refund to owner
+            b.status = u8(6)  # AUDIT_REJECTED
+            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
 
     @gl.public.write
     def adjudicate_appeal(self, bounty_id: str, appeal_evidence_url: str) -> None:
         """
         [ROLE: Appellate Security Court]
         Second-tier arbitration resolving DISPUTED bounties using counter-evidence.
+        Impartial consensus protecting both Owner and Auditor.
         """
         if bounty_id not in self.bounties:
             raise gl.UserError(f"Bounty {bounty_id} does not exist.")
 
         b = self.bounties[bounty_id]
-        if b.status != u8(3):
+        if b.status != u8(4):
             raise gl.UserError("Bounty is not in DISPUTED status.")
 
         clean_url = str(appeal_evidence_url).strip()
@@ -519,7 +537,7 @@ Respond ONLY with valid JSON:
 
         final_verdict = appeal_res["verdict"]
         b.verdict = final_verdict
-        b.reason = f"[APPELLATE VERDICT]: {appeal_res['reason']}"
+        b.reason = f"[APPELLATE COURT VERDICT]: {appeal_res['reason']}"
         b.confidence = u8(int(appeal_res["confidence"]))
         b.depth_score = u8(int(appeal_res["depth_score"]))
         b.disputed = False
@@ -529,22 +547,22 @@ Respond ONLY with valid JSON:
         self.total_audits_resolved = self.total_audits_resolved + u32(1)
 
         if final_verdict == "AUDIT_PASSED":
-            b.status = u8(4)
+            b.status = u8(5)  # AUDIT_APPROVED
             gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val))
         elif final_verdict == "PARTIAL_APPROVAL":
-            b.status = u8(4)
+            b.status = u8(5)  # AUDIT_APPROVED (partial)
             payout = (escrow_val * bigint(40)) // bigint(100)
             refund = escrow_val - payout
             gl.get_contract_at(b.auditor).emit_transfer(value=u256(payout))
             gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund))
         else:
-            b.status = u8(5)
+            b.status = u8(6)  # AUDIT_REJECTED
             gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
 
     @gl.public.write
     def resolve_admin_arbitration(self, bounty_id: str, admin_verdict: str) -> None:
         """
-        [ROLE: Platform Admin] Emergency arbitration resolving deadlocks.
+        [ROLE: Platform Admin] Emergency arbitration fallback for deadlocks.
         """
         caller = _addr_str(gl.message.sender_address).lower()
         if caller != self.platform_admin:
@@ -554,8 +572,8 @@ Respond ONLY with valid JSON:
             raise gl.UserError(f"Bounty {bounty_id} does not exist.")
 
         b = self.bounties[bounty_id]
-        if b.status not in (u8(2), u8(3)):
-            raise gl.UserError("Admin arbitration can only resolve AWAITING_PAYOUT or DISPUTED bounties.")
+        if b.status not in (u8(2), u8(3), u8(4)):
+            raise gl.UserError("Admin arbitration can only resolve cooling-off or DISPUTED bounties.")
 
         clean_v = str(admin_verdict).upper().strip()
         if clean_v not in ("AUDIT_PASSED", "PARTIAL_APPROVAL", "AUDIT_REJECTED"):
@@ -570,16 +588,16 @@ Respond ONLY with valid JSON:
         self.total_audits_resolved = self.total_audits_resolved + u32(1)
 
         if clean_v == "AUDIT_PASSED":
-            b.status = u8(4)
+            b.status = u8(5)
             gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val))
         elif clean_v == "PARTIAL_APPROVAL":
-            b.status = u8(4)
+            b.status = u8(5)
             payout = (escrow_val * bigint(40)) // bigint(100)
             refund = escrow_val - payout
             gl.get_contract_at(b.auditor).emit_transfer(value=u256(payout))
             gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund))
         else:
-            b.status = u8(5)
+            b.status = u8(6)
             gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
 
     @gl.public.write
@@ -606,7 +624,7 @@ Respond ONLY with valid JSON:
         else:
             raise gl.UserError("Bounty is already in resolution, disputed, or settled.")
 
-        b.status = u8(6)  # CANCELLED
+        b.status = u8(7)  # CANCELLED
         b.verdict = "CANCELLED"
         b.reason = "Bounty cancelled and funds reclaimed by project owner."
 

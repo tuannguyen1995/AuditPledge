@@ -18,8 +18,10 @@ import { AuditBountyData, parseGENToWei } from "./utils/helpers";
 
 export function App() {
   // Wallet State
-  const [account, setAccount] = useState<string | null>(null);
-  const [balance, setBalance] = useState<string>("0");
+  const [account, setAccount] = useState<string | null>(() => {
+    return localStorage.getItem("auditpledge_connected_account") || null;
+  });
+  const [balance, setBalance] = useState<string>("0.0000");
   const [isConnecting, setIsConnecting] = useState(false);
 
   // Contract State
@@ -28,7 +30,7 @@ export function App() {
   });
   const [platformAdmin, setPlatformAdmin] = useState<string>("");
 
-  // Bounties & Stats
+  // Bounties & Stats (100% On-Chain State)
   const [bounties, setBounties] = useState<AuditBountyData[]>([]);
   const [stats, setStats] = useState({
     totalEscrowLocked: "0",
@@ -40,7 +42,7 @@ export function App() {
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   // UI / Filters
-  const [activeTab, setActiveTab] = useState<"ALL" | "OPEN" | "IN_AUDIT" | "AWAITING_PAYOUT" | "DISPUTED" | "RESOLVED">("ALL");
+  const [activeTab, setActiveTab] = useState<"ALL" | "OPEN" | "IN_AUDIT" | "COOLING_OFF" | "DISPUTED" | "RESOLVED">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [notice, setNotice] = useState<{ type: "success" | "error" | "info"; msg: string } | null>(null);
 
@@ -58,25 +60,52 @@ export function App() {
     if (!account) return "GUEST";
     const accLower = account.toLowerCase();
     if (platformAdmin && accLower === platformAdmin.toLowerCase()) return "PLATFORM ADMIN";
-    if (bounties.some((b) => b.project_owner.toLowerCase() === accLower)) return "PROJECT OWNER";
-    if (bounties.some((b) => b.auditor.toLowerCase() === accLower)) return "SECURITY AUDITOR";
+    if (bounties.some((b) => b.project_owner && b.project_owner.toLowerCase() === accLower)) return "PROJECT OWNER";
+    if (bounties.some((b) => b.auditor && b.auditor.toLowerCase() === accLower)) return "SECURITY AUDITOR";
     return "GUEST";
   };
 
   const userRole = getUserRole();
   const isAdmin = userRole === "PLATFORM ADMIN";
 
-  // Save contract address to localStorage
-  const handleUpdateContractAddress = (newAddr: string) => {
-    setContractAddress(newAddr);
-    localStorage.setItem("auditpledge_contract_addr", newAddr);
-    setNotice({ type: "info", msg: `Updated contract address to: ${newAddr}` });
-  };
+  // Viem Public Client for StudioNet direct RPC
+  const getPublicClient = useCallback(() => {
+    return createPublicClient({
+      transport: http(STUDIONET_CONFIG.rpcUrl),
+    });
+  }, []);
+
+  // Fetch live on-chain balance directly from GenLayer StudioNet RPC
+  const fetchBalance = useCallback(async (addr: string) => {
+    if (!addr) return;
+    try {
+      const client = getPublicClient();
+      const rawBal = await client.getBalance({
+        address: addr as `0x${string}`,
+      });
+      const balNumber = Number(rawBal) / 1e18;
+      setBalance(balNumber.toFixed(4));
+    } catch (e) {
+      console.warn("StudioNet RPC getBalance fallback:", e);
+      try {
+        const ethereum = (window as any).ethereum;
+        if (!ethereum) return;
+        const rawBal = await ethereum.request({
+          method: "eth_getBalance",
+          params: [addr, "latest"],
+        });
+        const balNumber = Number(BigInt(rawBal)) / 1e18;
+        setBalance(balNumber.toFixed(4));
+      } catch (fallbackErr) {
+        console.error("Failed to read balance", fallbackErr);
+      }
+    }
+  }, [getPublicClient]);
 
   // Connect Wallet
   const connectWallet = async () => {
     if (typeof window === "undefined" || !(window as any).ethereum) {
-      setNotice({ type: "error", msg: "MetaMask is not installed. Please install MetaMask to interact." });
+      setNotice({ type: "error", msg: "MetaMask is not installed. Please install MetaMask to interact with GenLayer." });
       return;
     }
 
@@ -88,9 +117,11 @@ export function App() {
       });
 
       if (accounts && accounts.length > 0) {
-        setAccount(accounts[0]);
-        await fetchBalance(accounts[0]);
-        setNotice({ type: "success", msg: `Connected: ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}` });
+        const selected = accounts[0];
+        setAccount(selected);
+        localStorage.setItem("auditpledge_connected_account", selected);
+        await fetchBalance(selected);
+        setNotice({ type: "success", msg: `Connected: ${selected.slice(0, 6)}...${selected.slice(-4)}` });
       }
     } catch (err: any) {
       console.error(err);
@@ -100,30 +131,22 @@ export function App() {
     }
   };
 
-  // Fetch Balance in GEN
-  const fetchBalance = async (addr: string) => {
-    try {
-      const ethereum = (window as any).ethereum;
-      if (!ethereum) return;
-      const rawBal = await ethereum.request({
-        method: "eth_getBalance",
-        params: [addr, "latest"],
-      });
-      const balNumber = Number(BigInt(rawBal)) / 1e18;
-      setBalance(balNumber.toFixed(4));
-    } catch (e) {
-      console.error("Failed to read balance", e);
-    }
+  // Disconnect Wallet
+  const disconnectWallet = () => {
+    setAccount(null);
+    setBalance("0.0000");
+    localStorage.removeItem("auditpledge_connected_account");
+    setNotice({ type: "info", msg: "Wallet disconnected successfully." });
   };
 
-  // Viem Public Client for studionet views
-  const getPublicClient = () => {
-    return createPublicClient({
-      transport: http(STUDIONET_CONFIG.rpcUrl),
-    });
+  // Save contract address to localStorage
+  const handleUpdateContractAddress = (newAddr: string) => {
+    setContractAddress(newAddr);
+    localStorage.setItem("auditpledge_contract_addr", newAddr);
+    setNotice({ type: "info", msg: `Updated contract address to: ${newAddr}` });
   };
 
-  // Load Bounties & Stats from On-Chain Contract
+  // Load Bounties & Stats from On-Chain Contract (100% Real On-Chain)
   const refreshOnChainData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -159,136 +182,79 @@ export function App() {
           address: contractAddress as `0x${string}`,
           abi: AUDIT_PLEDGE_ABI,
           functionName: "get_bounties_paginated",
-          args: [0, 50],
+          args: [0, 100],
         });
 
         if (typeof bountiesRaw === "string") {
           const parsedList: AuditBountyData[] = JSON.parse(bountiesRaw);
-          if (Array.isArray(parsedList) && parsedList.length > 0) {
+          if (Array.isArray(parsedList)) {
             setBounties(parsedList);
             return;
           }
         }
+        setBounties([]);
       } catch (err) {
         console.warn("Could not read bounties paginated view:", err);
+        setBounties([]);
       }
-
-      // Fallback: If on-chain state is empty or contract is freshly deployed, provide starter demonstration fixtures
-      setBounties((prev) => (prev.length > 0 ? prev : getInitialDemoBounties()));
     } catch (e) {
       console.error("Failed to fetch on-chain data", e);
+      setBounties([]);
     } finally {
       setIsLoading(false);
     }
-  }, [contractAddress]);
+  }, [contractAddress, getPublicClient]);
 
-  // Initial demo bounties so users immediately see realistic examples
-  const getInitialDemoBounties = (): AuditBountyData[] => [
-    {
-      bounty_id: "audit-1",
-      project_owner: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-      auditor: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-      escrow_amount: "5000000000000000000",
-      target_repo_url: "https://github.com/defi-vault/autonomous-yield",
-      scope_spec: "Critical invariants: Solvency under liquidation cascades, state updates before flash loan external calls.",
-      report_url: "https://gist.githubusercontent.com/auditor-pro/8f3a6b7e/raw/reentrancy_poc.md",
-      status: 2, // AWAITING_PAYOUT
-      verdict: "AUDIT_PASSED",
-      reason: "High quality PoC reproducing exploit on VaultContract state variables with actionable ReentrancyGuard remediation.",
-      confidence: 94,
-      depth_score: 92,
-      created_at_block: "100",
-      expires_at_block: "6100",
-      payout_ready_at_block: "120",
-      disputed: false,
-      dispute_reason: "",
-      appeal_url: "",
-    },
-    {
-      bounty_id: "audit-2",
-      project_owner: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
-      auditor: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
-      escrow_amount: "2500000000000000000",
-      target_repo_url: "https://github.com/agentic-economy/escrow-hub",
-      scope_spec: "Target: Multi-sig arbitration, reentrancy guards on automated agent release.",
-      report_url: "https://gist.githubusercontent.com/auditor-sec/33b1/raw/findings.md",
-      status: 1, // IN_AUDIT
-      verdict: "PENDING",
-      reason: "Audit report submitted. On-chain AI jury evaluating security analysis depth.",
-      confidence: 0,
-      depth_score: 0,
-      created_at_block: "150",
-      expires_at_block: "10150",
-      payout_ready_at_block: "0",
-      disputed: false,
-      dispute_reason: "",
-      appeal_url: "",
-    },
-    {
-      bounty_id: "audit-3",
-      project_owner: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
-      auditor: "0x0000000000000000000000000000000000000000",
-      escrow_amount: "10000000000000000000",
-      target_repo_url: "https://github.com/oracle-bridge/light-client",
-      scope_spec: "Target: Validator signature verification, replay attack prevention with unique nonces.",
-      report_url: "",
-      status: 0, // OPEN
-      verdict: "PENDING",
-      reason: "Audit bounty open. Awaiting security auditor report submission.",
-      confidence: 0,
-      depth_score: 0,
-      created_at_block: "200",
-      expires_at_block: "15200",
-      payout_ready_at_block: "0",
-      disputed: false,
-      dispute_reason: "",
-      appeal_url: "",
-    },
-    {
-      bounty_id: "audit-4",
-      project_owner: "0x71C63d57B6E7E53EAb94F7A935a9A3142277884B",
-      auditor: "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF",
-      escrow_amount: "3000000000000000000",
-      target_repo_url: "https://github.com/nft-staking/reward-vault",
-      scope_spec: "Reward calculation rounding errors and timestamp manipulation.",
-      report_url: "https://gist.githubusercontent.com/hunter-zk/reward_dispute.md",
-      status: 3, // DISPUTED
-      verdict: "ESCALATE",
-      reason: "Dispute opened by OWNER: The reported rounding flaw occurs only when precision is under 1 wei, which is mathematically impossible in production.",
-      confidence: 70,
-      depth_score: 65,
-      created_at_block: "250",
-      expires_at_block: "8250",
-      payout_ready_at_block: "270",
-      disputed: true,
-      dispute_reason: "[OWNER CHALLENGE]: Reported rounding issue is unexploitable in production.",
-      appeal_url: "https://gist.githubusercontent.com/hunter-zk/appellate_poc.md",
-    },
-  ];
+  // Periodic Balance Polling (every 6 seconds while connected)
+  useEffect(() => {
+    if (!account) return;
+    fetchBalance(account);
+    const timer = setInterval(() => {
+      fetchBalance(account);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [account, fetchBalance]);
 
-  // Auto-refresh and wallet event listeners
+  // Initial load and wallet event listeners
   useEffect(() => {
     refreshOnChainData();
 
     if (typeof window !== "undefined" && (window as any).ethereum) {
       const ethereum = (window as any).ethereum;
-      const handleAccounts = (accs: string[]) => {
-        if (accs.length > 0) {
+
+      // Verify active account if already stored
+      ethereum.request({ method: "eth_accounts" }).then((accs: string[]) => {
+        if (accs && accs.length > 0) {
           setAccount(accs[0]);
           fetchBalance(accs[0]);
         } else {
           setAccount(null);
-          setBalance("0");
+          setBalance("0.0000");
+          localStorage.removeItem("auditpledge_connected_account");
+        }
+      }).catch(console.error);
+
+      const handleAccounts = (accs: string[]) => {
+        if (accs.length > 0) {
+          setAccount(accs[0]);
+          localStorage.setItem("auditpledge_connected_account", accs[0]);
+          fetchBalance(accs[0]);
+        } else {
+          disconnectWallet();
         }
       };
+
       ethereum.on("accountsChanged", handleAccounts);
-      ethereum.on("chainChanged", () => window.location.reload());
+      ethereum.on("chainChanged", () => {
+        if (account) fetchBalance(account);
+        refreshOnChainData();
+      });
 
       return () => {
         ethereum.removeListener("accountsChanged", handleAccounts);
       };
     }
-  }, [refreshOnChainData]);
+  }, [refreshOnChainData, fetchBalance, account]);
 
   // Transaction Helper
   const sendContractTx = async (functionName: string, args: any[], valueWei: bigint = BigInt(0)) => {
@@ -321,355 +287,215 @@ export function App() {
     return txHash;
   };
 
-  // Action: Create Bounty
+  // Action: Create Bounty (Real On-Chain)
   const handleCreateBounty = async (repoUrl: string, scope: string, amountGen: string, durationBlocks: number) => {
     setIsActionLoading(true);
     try {
       const wei = parseGENToWei(amountGen);
-      setNotice({ type: "info", msg: "Submitting create_audit_bounty to studionet..." });
+      setNotice({ type: "info", msg: "Broadcasting create_audit_bounty transaction to GenLayer StudioNet..." });
 
-      try {
-        const txHash = await sendContractTx("create_audit_bounty", [repoUrl, scope, durationBlocks], wei);
-        setNotice({ type: "success", msg: `Bounty created on-chain! Tx: ${txHash.slice(0, 10)}...` });
-      } catch (txErr: any) {
-        console.warn("Live tx error (falling back to optimistic update for demo):", txErr);
-        // Optimistic update
-        const newId = `audit-${bounties.length + 1}`;
-        const newBounty: AuditBountyData = {
-          bounty_id: newId,
-          project_owner: account || "0xMyProjectOwnerAddress",
-          auditor: "0x0000000000000000000000000000000000000000",
-          escrow_amount: wei.toString(),
-          target_repo_url: repoUrl,
-          scope_spec: scope,
-          report_url: "",
-          status: 0,
-          verdict: "PENDING",
-          reason: "Audit bounty open. Awaiting security auditor report submission.",
-          confidence: 0,
-          depth_score: 0,
-          created_at_block: "300",
-          expires_at_block: (300 + durationBlocks).toString(),
-          payout_ready_at_block: "0",
-          disputed: false,
-          dispute_reason: "",
-          appeal_url: "",
-        };
-        setBounties([newBounty, ...bounties]);
-        setStats((prev) => ({
-          ...prev,
-          totalBounties: prev.totalBounties + 1,
-          totalEscrowLocked: (BigInt(prev.totalEscrowLocked || "0") + wei).toString(),
-        }));
-        setNotice({ type: "success", msg: `Bounty ${newId} created successfully!` });
-      }
+      const txHash = await sendContractTx("create_audit_bounty", [repoUrl, scope, durationBlocks], wei);
+      setNotice({ type: "info", msg: `Transaction broadcasted: ${txHash.slice(0, 10)}... Awaiting on-chain confirmation...` });
 
-      if (account) fetchBalance(account);
-      refreshOnChainData();
+      // Wait for block propagation
+      await new Promise((resolve) => setTimeout(resolve, 3500));
+      await refreshOnChainData();
+      if (account) await fetchBalance(account);
+
+      setNotice({ type: "success", msg: `Bounty created on-chain! Tx: ${txHash.slice(0, 10)}...` });
+      setIsCreateOpen(false);
     } catch (err: any) {
-      setNotice({ type: "error", msg: err?.message || "Failed to create bounty." });
+      console.error("Create bounty error:", err);
+      setNotice({ type: "error", msg: err?.message || "Failed to create bounty on-chain." });
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  // Action: Submit Report
+  // Action: Submit Report (Real On-Chain)
   const handleSubmitReport = async (bountyId: string, reportUrl: string) => {
     setIsActionLoading(true);
     try {
-      setNotice({ type: "info", msg: `Submitting report URL for ${bountyId}...` });
+      setNotice({ type: "info", msg: `Submitting audit report for ${bountyId} on-chain...` });
 
-      try {
-        const txHash = await sendContractTx("submit_audit_report", [bountyId, reportUrl]);
-        setNotice({ type: "success", msg: `Report submitted on-chain! Tx: ${txHash.slice(0, 10)}...` });
-      } catch (txErr: any) {
-        console.warn("Live tx error (falling back to optimistic update for demo):", txErr);
-        // Optimistic update
-        setBounties((prev) =>
-          prev.map((b) => {
-            if (b.bounty_id === bountyId) {
-              return {
-                ...b,
-                status: 1, // IN_AUDIT
-                auditor: account || "0xMyAuditorAddress",
-                report_url: reportUrl,
-                reason: "Audit report submitted. On-chain AI jury evaluating security analysis depth.",
-              };
-            }
-            return b;
-          })
-        );
-        setNotice({ type: "success", msg: `Report submitted for ${bountyId}. Ready for AI Jury evaluation!` });
-      }
+      const txHash = await sendContractTx("submit_audit_report", [bountyId, reportUrl]);
+      setNotice({ type: "info", msg: `Report submitted: ${txHash.slice(0, 10)}... Awaiting on-chain confirmation...` });
 
-      refreshOnChainData();
+      await new Promise((resolve) => setTimeout(resolve, 3500));
+      await refreshOnChainData();
+      if (account) await fetchBalance(account);
+
+      setNotice({ type: "success", msg: `Report submitted for ${bountyId}! Ready for AI Jury evaluation.` });
+      setSelectedBountyForSubmit(null);
     } catch (err: any) {
-      setNotice({ type: "error", msg: err?.message || "Failed to submit report." });
+      console.error("Submit report error:", err);
+      setNotice({ type: "error", msg: err?.message || "Failed to submit report on-chain." });
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  // Action: Adjudicate Audit (AI Jury)
+  // Action: Adjudicate Audit (Real On-Chain AI Jury Consensus)
   const handleAdjudicate = async (bountyId: string) => {
     setActiveActionBountyId(bountyId);
     setIsActionLoading(true);
     try {
       setNotice({
         type: "info",
-        msg: `Decentralized AI Jury evaluating ${bountyId} (gl.nondet.web.render & consensus)...`,
+        msg: `Executing decentralized AI Jury consensus for ${bountyId} (gl.nondet.web.render & gl.vm.run_nondet)...`,
       });
 
-      try {
-        const txHash = await sendContractTx("adjudicate_audit", [bountyId]);
-        setNotice({ type: "success", msg: `Adjudication consensus reached on-chain! Tx: ${txHash.slice(0, 10)}...` });
-      } catch (txErr: any) {
-        console.warn("Live tx error (falling back to optimistic evaluation simulation):", txErr);
-        // Determine whether sample report was passing or rejecting
-        const targetBounty = bounties.find((b) => b.bounty_id === bountyId);
-        const isSpamReport = targetBounty?.report_url.includes("style_notice") || targetBounty?.report_url.includes("linter");
-        const verdict = isSpamReport ? "AUDIT_REJECTED" : "AUDIT_PASSED";
-        const depthScore = isSpamReport ? 18 : 94;
-        const confidence = isSpamReport ? 98 : 91;
-        const reason = isSpamReport
-          ? "AI Jury Consensus: Report contains trivial style/formatting notices with zero reproducible exploit proof. Rejected as false-positive spam. Escrow refunded to Project Owner."
-          : "AI Jury Consensus: Verified non-trivial vulnerability with reproducible attack scenario and concrete remediation steps. Escrow released to Security Auditor.";
+      const txHash = await sendContractTx("adjudicate_audit", [bountyId]);
+      setNotice({ type: "info", msg: `Adjudication consensus tx submitted: ${txHash.slice(0, 10)}... Waiting for validators...` });
 
-        setBounties((prev) =>
-          prev.map((b) => {
-            if (b.bounty_id === bountyId) {
-              return {
-                ...b,
-                status: isSpamReport ? 3 : 2,
-                verdict,
-                depth_score: depthScore,
-                confidence,
-                reason,
-              };
-            }
-            return b;
-          })
-        );
-        setStats((prev) => ({
-          ...prev,
-          totalAuditsResolved: prev.totalAuditsResolved + 1,
-        }));
-        setNotice({
-          type: "success",
-          msg: `AI Jury Adjudication Concluded: ${verdict} (Depth Score: ${depthScore}/100)`,
-        });
-      }
+      await new Promise((resolve) => setTimeout(resolve, 4500));
+      await refreshOnChainData();
+      if (account) await fetchBalance(account);
 
-      if (account) fetchBalance(account);
-      refreshOnChainData();
+      setNotice({ type: "success", msg: `AI Jury consensus reached on-chain! Tx: ${txHash.slice(0, 10)}...` });
     } catch (err: any) {
-      setNotice({ type: "error", msg: err?.message || "Failed to adjudicate audit." });
+      console.error("Adjudication error:", err);
+      setNotice({ type: "error", msg: err?.message || "Failed to adjudicate audit on-chain." });
     } finally {
       setIsActionLoading(false);
       setActiveActionBountyId(null);
     }
   };
 
-  // Action: Raise Dispute (Cooling-off)
+  // Action: Raise Dispute (Real On-Chain Symmetrical Dispute)
   const handleRaiseDispute = async (bountyId: string, reason: string) => {
     setIsActionLoading(true);
     try {
-      setNotice({ type: "info", msg: `Submitting dispute challenge for ${bountyId}...` });
+      setNotice({ type: "info", msg: `Submitting dispute challenge for ${bountyId} on-chain...` });
 
-      try {
-        const txHash = await sendContractTx("raise_dispute", [bountyId, reason]);
-        setNotice({ type: "success", msg: `Dispute opened on-chain! Tx: ${txHash.slice(0, 10)}...` });
-      } catch (txErr: any) {
-        console.warn("Optimistic update fallback:", txErr);
-        setBounties((prev) =>
-          prev.map((b) => {
-            if (b.bounty_id === bountyId) {
-              return {
-                ...b,
-                status: 3, // DISPUTED
-                disputed: true,
-                dispute_reason: `[CHALLENGE]: ${reason}`,
-                reason: `Dispute opened: ${reason} | Prior assessment: ${b.reason}`,
-              };
-            }
-            return b;
-          })
-        );
-        setNotice({ type: "success", msg: `Dispute opened for ${bountyId}. Moved to Appellate Court!` });
-      }
+      const txHash = await sendContractTx("raise_dispute", [bountyId, reason]);
+      setNotice({ type: "info", msg: `Dispute challenge tx submitted: ${txHash.slice(0, 10)}... Moving to Appellate Court...` });
 
-      refreshOnChainData();
+      await new Promise((resolve) => setTimeout(resolve, 3500));
+      await refreshOnChainData();
+      if (account) await fetchBalance(account);
+
+      setNotice({ type: "success", msg: `Dispute opened on-chain! Moved to Appellate Court. Tx: ${txHash.slice(0, 10)}...` });
+      setDisputeModalState({ isOpen: false, bounty: null, mode: "DISPUTE" });
     } catch (err: any) {
-      setNotice({ type: "error", msg: err?.message || "Failed to raise dispute." });
+      console.error("Raise dispute error:", err);
+      setNotice({ type: "error", msg: err?.message || "Failed to raise dispute on-chain." });
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  // Action: Finalize Settlement
+  // Action: Finalize Settlement (Real On-Chain Permissionless Finalization)
   const handleFinalizeSettlement = async (bountyId: string) => {
     setActiveActionBountyId(bountyId);
     setIsActionLoading(true);
     try {
-      setNotice({ type: "info", msg: `Finalizing settlement and disbursing funds for ${bountyId}...` });
+      setNotice({ type: "info", msg: `Finalizing settlement on-chain for ${bountyId}...` });
 
-      try {
-        const txHash = await sendContractTx("finalize_settlement", [bountyId]);
-        setNotice({ type: "success", msg: `Settlement finalized on-chain! Tx: ${txHash.slice(0, 10)}...` });
-      } catch (txErr: any) {
-        console.warn("Optimistic update fallback:", txErr);
-        setBounties((prev) =>
-          prev.map((b) => {
-            if (b.bounty_id === bountyId) {
-              return {
-                ...b,
-                status: 4, // AUDIT_APPROVED (Settled)
-              };
-            }
-            return b;
-          })
-        );
-        setStats((prev) => ({
-          ...prev,
-          totalAuditsResolved: prev.totalAuditsResolved + 1,
-        }));
-        setNotice({ type: "success", msg: `Bounty ${bountyId} settlement finalized!` });
-      }
+      const txHash = await sendContractTx("finalize_settlement", [bountyId]);
+      setNotice({ type: "info", msg: `Settlement finalization submitted: ${txHash.slice(0, 10)}... Disbursing funds...` });
 
-      if (account) fetchBalance(account);
-      refreshOnChainData();
+      await new Promise((resolve) => setTimeout(resolve, 3500));
+      await refreshOnChainData();
+      if (account) await fetchBalance(account);
+
+      setNotice({ type: "success", msg: `Settlement disbursed on-chain! Tx: ${txHash.slice(0, 10)}...` });
     } catch (err: any) {
-      setNotice({ type: "error", msg: err?.message || "Failed to finalize settlement." });
+      console.error("Finalize settlement error:", err);
+      setNotice({ type: "error", msg: err?.message || "Failed to finalize settlement on-chain." });
     } finally {
       setIsActionLoading(false);
       setActiveActionBountyId(null);
     }
   };
 
-  // Action: Submit Appellate Counter-Evidence
+  // Action: Submit Appellate Counter-Evidence (Real On-Chain Appellate Consensus)
   const handleAdjudicateAppeal = async (bountyId: string, appealUrl: string) => {
     setIsActionLoading(true);
     try {
-      setNotice({ type: "info", msg: `Appellate court evaluating counter-proof for ${bountyId}...` });
+      setNotice({ type: "info", msg: `Submitting appellate counter-evidence on-chain for ${bountyId}...` });
 
-      try {
-        const txHash = await sendContractTx("adjudicate_appeal", [bountyId, appealUrl]);
-        setNotice({ type: "success", msg: `Appellate verdict reached! Tx: ${txHash.slice(0, 10)}...` });
-      } catch (txErr: any) {
-        console.warn("Optimistic update fallback:", txErr);
-        setBounties((prev) =>
-          prev.map((b) => {
-            if (b.bounty_id === bountyId) {
-              return {
-                ...b,
-                status: 4,
-                verdict: "AUDIT_PASSED",
-                disputed: false,
-                appeal_url: appealUrl,
-                reason: `[APPELLATE COURT VERDICT]: Counter-evidence confirmed exploit validity. Full bounty awarded to Auditor.`,
-              };
-            }
-            return b;
-          })
-        );
-        setNotice({ type: "success", msg: `Appellate court confirmed verdict for ${bountyId}!` });
-      }
+      const txHash = await sendContractTx("adjudicate_appeal", [bountyId, appealUrl]);
+      setNotice({ type: "info", msg: `Appellate consensus tx submitted: ${txHash.slice(0, 10)}... Waiting for validators...` });
 
-      if (account) fetchBalance(account);
-      refreshOnChainData();
+      await new Promise((resolve) => setTimeout(resolve, 4500));
+      await refreshOnChainData();
+      if (account) await fetchBalance(account);
+
+      setNotice({ type: "success", msg: `Appellate Court consensus concluded! Tx: ${txHash.slice(0, 10)}...` });
+      setDisputeModalState({ isOpen: false, bounty: null, mode: "APPEAL" });
     } catch (err: any) {
-      setNotice({ type: "error", msg: err?.message || "Failed to submit appeal." });
+      console.error("Appeal error:", err);
+      setNotice({ type: "error", msg: err?.message || "Failed to submit appeal on-chain." });
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  // Action: Admin Emergency Arbitration
+  // Action: Admin Emergency Arbitration (Real On-Chain)
   const handleAdminArbitrate = async (bountyId: string, verdict: string) => {
     setActiveActionBountyId(bountyId);
     setIsActionLoading(true);
     try {
-      setNotice({ type: "info", msg: `Platform Admin arbitrating ${bountyId}...` });
+      setNotice({ type: "info", msg: `Executing Platform Admin arbitration on-chain for ${bountyId}...` });
 
-      try {
-        const txHash = await sendContractTx("resolve_admin_arbitration", [bountyId, verdict]);
-        setNotice({ type: "success", msg: `Admin arbitration finalized! Tx: ${txHash.slice(0, 10)}...` });
-      } catch (txErr: any) {
-        console.warn("Optimistic update fallback:", txErr);
-        const newStatus = verdict === "AUDIT_REJECTED" ? 5 : 4;
-        setBounties((prev) =>
-          prev.map((b) => {
-            if (b.bounty_id === bountyId) {
-              return {
-                ...b,
-                status: newStatus,
-                verdict,
-                disputed: false,
-                reason: `[ADMIN ARBITRATION OVERRIDE]: Finalized by Platform Admin as ${verdict}.`,
-              };
-            }
-            return b;
-          })
-        );
-        setNotice({ type: "success", msg: `Bounty ${bountyId} resolved by Platform Admin as ${verdict}.` });
-      }
+      const txHash = await sendContractTx("resolve_admin_arbitration", [bountyId, verdict]);
+      setNotice({ type: "info", msg: `Admin arbitration tx submitted: ${txHash.slice(0, 10)}... Finalizing...` });
 
-      if (account) fetchBalance(account);
-      refreshOnChainData();
+      await new Promise((resolve) => setTimeout(resolve, 3500));
+      await refreshOnChainData();
+      if (account) await fetchBalance(account);
+
+      setNotice({ type: "success", msg: `Admin arbitration resolved as ${verdict}! Tx: ${txHash.slice(0, 10)}...` });
     } catch (err: any) {
-      setNotice({ type: "error", msg: err?.message || "Failed to arbitrate." });
+      console.error("Admin arbitrate error:", err);
+      setNotice({ type: "error", msg: err?.message || "Failed to arbitrate on-chain." });
     } finally {
       setIsActionLoading(false);
       setActiveActionBountyId(null);
     }
   };
 
-  // Action: Cancel or Reclaim
+  // Action: Cancel or Reclaim (Real On-Chain)
   const handleReclaim = async (bountyId: string) => {
     setActiveActionBountyId(bountyId);
     setIsActionLoading(true);
     try {
-      setNotice({ type: "info", msg: `Reclaiming escrow for ${bountyId}...` });
+      setNotice({ type: "info", msg: `Reclaiming escrow on-chain for ${bountyId}...` });
 
-      try {
-        const txHash = await sendContractTx("cancel_or_reclaim", [bountyId]);
-        setNotice({ type: "success", msg: `Escrow reclaimed! Tx: ${txHash.slice(0, 10)}...` });
-      } catch (txErr: any) {
-        console.warn("Live tx error (falling back to optimistic update):", txErr);
-        setBounties((prev) =>
-          prev.map((b) => {
-            if (b.bounty_id === bountyId) {
-              return {
-                ...b,
-                status: 4, // CANCELLED
-                verdict: "CANCELLED",
-                reason: "Bounty cancelled and funds reclaimed by project owner.",
-              };
-            }
-            return b;
-          })
-        );
-        setNotice({ type: "success", msg: `Bounty ${bountyId} cancelled and funds reclaimed.` });
-      }
+      const txHash = await sendContractTx("cancel_or_reclaim", [bountyId]);
+      setNotice({ type: "info", msg: `Reclaim tx submitted: ${txHash.slice(0, 10)}... Refunding escrow...` });
 
-      if (account) fetchBalance(account);
-      refreshOnChainData();
+      await new Promise((resolve) => setTimeout(resolve, 3500));
+      await refreshOnChainData();
+      if (account) await fetchBalance(account);
+
+      setNotice({ type: "success", msg: `Escrow reclaimed on-chain! Tx: ${txHash.slice(0, 10)}...` });
     } catch (err: any) {
-      setNotice({ type: "error", msg: err?.message || "Failed to reclaim escrow." });
+      console.error("Reclaim error:", err);
+      setNotice({ type: "error", msg: err?.message || "Failed to reclaim escrow on-chain." });
     } finally {
       setIsActionLoading(false);
       setActiveActionBountyId(null);
     }
   };
 
-  // Filter & Search Bounties
+  // Filter & Search Bounties across 8 Contract Lifecycle States
   const filteredBounties = bounties.filter((b) => {
-    // Tab filter
+    // Status filters:
+    // 0: OPEN
+    // 1: IN_AUDIT
+    // 2: AWAITING_PAYOUT (Provisional Pass Cooling-Off)
+    // 3: AWAITING_REFUND (Provisional Reject Cooling-Off)
+    // 4: DISPUTED (Appellate Court)
+    // 5: AUDIT_APPROVED (Settled Payout)
+    // 6: AUDIT_REJECTED (Settled Refund)
+    // 7: CANCELLED (Reclaimed)
     if (activeTab === "OPEN" && b.status !== 0) return false;
     if (activeTab === "IN_AUDIT" && b.status !== 1) return false;
-    if (activeTab === "AWAITING_PAYOUT" && b.status !== 2) return false;
-    if (activeTab === "DISPUTED" && b.status !== 3) return false;
-    if (activeTab === "RESOLVED" && b.status !== 4 && b.status !== 5) return false;
+    if (activeTab === "COOLING_OFF" && b.status !== 2 && b.status !== 3) return false;
+    if (activeTab === "DISPUTED" && b.status !== 4) return false;
+    if (activeTab === "RESOLVED" && b.status !== 5 && b.status !== 6 && b.status !== 7) return false;
 
     // Search filter
     if (searchQuery.trim()) {
@@ -687,12 +513,13 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-solar-base3 text-solar-base02 flex flex-col font-sans">
-      {/* Top Terminal Bar */}
+      {/* Top Terminal Bar with Disconnect Button and Direct Balance */}
       <Navbar
         account={account}
         balance={balance}
         isConnecting={isConnecting}
         onConnect={connectWallet}
+        onDisconnect={disconnectWallet}
         contractAddress={contractAddress}
         onUpdateContractAddress={handleUpdateContractAddress}
         userRole={userRole}
@@ -736,15 +563,17 @@ export function App() {
                 AGENTIC SECURITY INFRASTRUCTURE
               </span>
               <span className="text-xs font-mono text-solar-base01">
-                GenLayer Studionet (Chain 61999)
+                GenLayer Studionet (Chain 61999) &bull; 100% On-Chain State
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-mono font-bold text-solar-base03 leading-tight">
               Autonomous Multi-Auditor Consensus & Vulnerability Disclosure Escrow
             </h1>
             <p className="text-sm text-solar-base00 leading-relaxed font-sans">
-              Smart contracts traditionally cannot read audit reports, verify exploit scripts, or distinguish genuine critical zero-days from automated linter spam.
-              AuditPledge uses GenLayer’s on-chain web rendering and decentralized AI subjective consensus (<code className="font-mono text-solar-cyan bg-solar-base3 px-1 rounded">gl.vm.run_nondet</code>) with a <strong>24-Hour Cooling-Off Challenge Window</strong>, <strong>Graduated 3-Tier Payout Matrix</strong>, and <strong>On-Chain Appellate Court</strong>.
+              AuditPledge eliminates asymmetric audit risks between developers and security auditors.
+              Powered by GenLayer’s on-chain web rendering and decentralized AI subjective consensus (<code className="font-mono text-solar-cyan bg-solar-base3 px-1 rounded">gl.vm.run_nondet</code>),
+              featuring <strong>Symmetrical 20-Block Cooling-Off Windows</strong> (protecting both Owner against false reports and Auditor against wrongful rejections),
+              a <strong>Graduated Payout Settlement Matrix</strong> (100% Critical / 40% Partial / 0% Reject), and an <strong>On-Chain Appellate Security Court</strong>.
             </p>
 
             <div className="pt-2 flex flex-wrap items-center gap-3">
@@ -782,7 +611,7 @@ export function App() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
           {/* Status Tabs */}
           <div className="flex items-center space-x-1 bg-solar-base2 p-1 rounded border border-solar-base1 font-mono text-xs w-full sm:w-auto overflow-x-auto">
-            {(["ALL", "OPEN", "IN_AUDIT", "AWAITING_PAYOUT", "DISPUTED", "RESOLVED"] as const).map((tab) => (
+            {(["ALL", "OPEN", "IN_AUDIT", "COOLING_OFF", "DISPUTED", "RESOLVED"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -792,12 +621,12 @@ export function App() {
                     : "text-solar-base01 hover:text-solar-base03 hover:bg-solar-base3/50"
                 }`}
               >
-                {tab === "ALL" && "All Escrows"}
-                {tab === "OPEN" && "Open Bounties"}
-                {tab === "IN_AUDIT" && "In Review"}
-                {tab === "AWAITING_PAYOUT" && "Cooling-Off"}
-                {tab === "DISPUTED" && "Disputed / Appeals"}
-                {tab === "RESOLVED" && "Settled Audits"}
+                {tab === "ALL" && `All Escrows (${bounties.length})`}
+                {tab === "OPEN" && `Open (${bounties.filter((b) => b.status === 0).length})`}
+                {tab === "IN_AUDIT" && `In Review (${bounties.filter((b) => b.status === 1).length})`}
+                {tab === "COOLING_OFF" && `Cooling-Off (${bounties.filter((b) => b.status === 2 || b.status === 3).length})`}
+                {tab === "DISPUTED" && `Appeals (${bounties.filter((b) => b.status === 4).length})`}
+                {tab === "RESOLVED" && `Settled (${bounties.filter((b) => b.status === 5 || b.status === 6 || b.status === 7).length})`}
               </button>
             ))}
           </div>
@@ -815,23 +644,25 @@ export function App() {
           </div>
         </div>
 
-        {/* Bounties Grid */}
+        {/* Bounties Grid (Real On-Chain State Only) */}
         <div className="space-y-4">
           {filteredBounties.length === 0 ? (
             <div className="bg-solar-base2 border border-solar-base1 rounded p-12 text-center space-y-3 font-mono">
               <Code2 className="w-8 h-8 text-solar-base01 mx-auto" />
-              <div className="text-sm font-bold text-solar-base03">No Escrows Found</div>
-              <p className="text-xs text-solar-base00 max-w-md mx-auto font-sans">
-                {searchQuery
-                  ? "No bounties match your current search query."
-                  : "No audit escrow pools currently registered under this filter."}
+              <div className="text-sm font-bold text-solar-base03">
+                {bounties.length === 0 ? "No On-Chain Bounties Yet" : "No Matching Escrows Found"}
+              </div>
+              <p className="text-xs text-solar-base00 max-w-md mx-auto font-sans leading-relaxed">
+                {bounties.length === 0
+                  ? `The smart contract at ${contractAddress.slice(0, 10)}... currently has 0 registered escrows. Click 'Create Audit Escrow Bounty' above to lock GEN and deploy the first real on-chain audit bounty on GenLayer StudioNet!`
+                  : "No audit escrow pools currently registered under this filter tab or search query."}
               </p>
               <button
                 onClick={() => setIsCreateOpen(true)}
-                className="px-4 py-2 bg-solar-cyan text-solar-base3 rounded text-xs font-bold inline-flex items-center space-x-1.5"
+                className="px-4 py-2 bg-solar-cyan text-solar-base3 rounded text-xs font-bold inline-flex items-center space-x-1.5 shadow-sm active:scale-95"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
-                <span>Create Bounty</span>
+                <span>Create Bounty on GenLayer</span>
               </button>
             </div>
           ) : (

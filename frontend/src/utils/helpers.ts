@@ -6,9 +6,15 @@ export interface AuditBountyData {
   target_repo_url: string;
   scope_spec: string;
   report_url: string;
-  // Status:
-  // 0: OPEN, 1: IN_AUDIT, 2: AWAITING_PAYOUT, 3: DISPUTED,
-  // 4: AUDIT_APPROVED (Settled), 5: AUDIT_REJECTED (Settled), 6: CANCELLED
+  // Symmetrical Mutually-Protected Status Lifecycle:
+  // 0: OPEN
+  // 1: IN_AUDIT
+  // 2: AWAITING_PAYOUT (Provisional Pass: Owner 20-block cooling-off challenge window)
+  // 3: AWAITING_REFUND (Provisional Reject: Auditor 20-block cooling-off challenge window)
+  // 4: DISPUTED (Active Appellate Court review: both parties protected)
+  // 5: AUDIT_APPROVED (Settled: 100% or 40% disbursed to Auditor)
+  // 6: AUDIT_REJECTED (Settled: 100% refunded to Project Owner)
+  // 7: CANCELLED (Reclaimed by Project Owner)
   status: number;
   verdict: string; // "PENDING", "AUDIT_PASSED", "PARTIAL_APPROVAL", "AUDIT_REJECTED", "ESCALATE", "CANCELLED"
   reason: string;
@@ -77,37 +83,45 @@ export function getStatusBadge(status: number): { label: string; bg: string; tex
       };
     case 2:
       return {
-        label: "AWAITING PAYOUT",
+        label: "COOLING-OFF (PASS)",
         bg: "bg-solar-orange/15",
         text: "text-solar-orange",
         border: "border-solar-orange",
-        desc: "Cooling-Off Period: Parties may challenge or dispute verdict",
+        desc: "Provisional Pass: Owner may challenge within 20 blocks",
       };
     case 3:
+      return {
+        label: "COOLING-OFF (REJECT)",
+        bg: "bg-solar-orange/15",
+        text: "text-solar-orange",
+        border: "border-solar-orange",
+        desc: "Provisional Reject: Auditor may challenge within 20 blocks",
+      };
+    case 4:
       return {
         label: "DISPUTED",
         bg: "bg-solar-red/15",
         text: "text-solar-red",
         border: "border-solar-red",
-        desc: "Active dispute: Awaiting appellate evidence or arbitration",
+        desc: "Active dispute: In Appellate Security Court review",
       };
-    case 4:
+    case 5:
       return {
         label: "AUDIT APPROVED",
         bg: "bg-solar-green/15",
         text: "text-solar-green",
         border: "border-solar-green",
-        desc: "Settled: Bounty funds disbursed to auditor",
+        desc: "Settled: Bounty disbursed to auditor",
       };
-    case 5:
+    case 6:
       return {
         label: "AUDIT REJECTED",
         bg: "bg-solar-base01/15",
         text: "text-solar-base01",
         border: "border-solar-base01",
-        desc: "Settled: Escrow refunded back to project owner",
+        desc: "Settled: 100% Escrow refunded to project owner",
       };
-    case 6:
+    case 7:
       return {
         label: "CANCELLED",
         bg: "bg-solar-base01/10",

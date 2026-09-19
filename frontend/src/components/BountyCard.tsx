@@ -37,7 +37,6 @@ export const BountyCard: React.FC<BountyCardProps> = ({
   const verdictDisplay = getVerdictDisplay(bounty.verdict);
   const isOwner = Boolean(account && account.toLowerCase() === bounty.project_owner.toLowerCase());
   const isAuditor = Boolean(account && account.toLowerCase() === bounty.auditor.toLowerCase());
-  const isParty = isOwner || isAuditor;
   const isProcessing = isActionLoading && activeActionBountyId === bounty.bounty_id;
 
   return (
@@ -143,15 +142,15 @@ export const BountyCard: React.FC<BountyCardProps> = ({
         </div>
       )}
 
-      {/* Status 2: AWAITING_PAYOUT (Cooling-off Challenge Window) */}
+      {/* Status 2: AWAITING_PAYOUT (Cooling-off Challenge Window for Project Owner) */}
       {bounty.status === 2 && (
         <div className="p-3 bg-solar-orange/10 rounded border border-solar-orange/40 space-y-2 font-mono text-xs">
           <div className="flex items-center justify-between text-solar-orange">
             <div className="flex items-center space-x-1.5">
               <Clock className="w-4 h-4 animate-pulse" />
-              <span className="font-bold">24-Hour Cooling-Off Challenge Window</span>
+              <span className="font-bold">20-Block Cooling-Off: Provisional Pass</span>
             </div>
-            <span className="text-[11px] font-bold">Payout block: #{bounty.payout_ready_at_block}</span>
+            <span className="text-[11px] font-bold">Matures at block: #{bounty.payout_ready_at_block}</span>
           </div>
 
           <div className="flex items-center justify-between bg-solar-base3 p-2 rounded text-[11px]">
@@ -160,17 +159,39 @@ export const BountyCard: React.FC<BountyCardProps> = ({
           </div>
 
           <p className="font-sans text-[11px] text-solar-base00">
-            Either the Project Owner or Auditor may challenge this assessment before final disbursement.
+            <strong>Project Owner Protection:</strong> The Owner may inspect findings and challenge this approval if the exploit is unverified or out of scope.
           </p>
         </div>
       )}
 
-      {/* Status 3: DISPUTED (Appellate Court Phase) */}
+      {/* Status 3: AWAITING_REFUND (Cooling-off Challenge Window for Security Auditor) */}
       {bounty.status === 3 && (
+        <div className="p-3 bg-solar-orange/10 rounded border border-solar-orange/40 space-y-2 font-mono text-xs">
+          <div className="flex items-center justify-between text-solar-orange">
+            <div className="flex items-center space-x-1.5">
+              <Clock className="w-4 h-4 animate-pulse" />
+              <span className="font-bold">20-Block Cooling-Off: Provisional Rejection</span>
+            </div>
+            <span className="text-[11px] font-bold">Matures at block: #{bounty.payout_ready_at_block}</span>
+          </div>
+
+          <div className="flex items-center justify-between bg-solar-base3 p-2 rounded text-[11px]">
+            <span className="text-solar-base01">Provisional Verdict:</span>
+            <span className={`font-bold ${verdictDisplay.text}`}>{verdictDisplay.label}</span>
+          </div>
+
+          <p className="font-sans text-[11px] text-solar-base00">
+            <strong>Security Auditor Protection:</strong> The Auditor may challenge this rejection if the AI jury overlooked reproducible vulnerability depth.
+          </p>
+        </div>
+      )}
+
+      {/* Status 4: DISPUTED (Appellate Court Phase) */}
+      {bounty.status === 4 && (
         <div className="p-3 bg-solar-red/10 rounded border border-solar-red/40 space-y-2 font-mono text-xs">
           <div className="flex items-center space-x-1.5 text-solar-red font-bold">
             <ShieldAlert className="w-4 h-4" />
-            <span>Escrow Under Active Dispute</span>
+            <span>Escrow Under Active Dispute (Appellate Security Court)</span>
           </div>
           <div className="bg-solar-base3 p-2 rounded text-[11px] text-solar-base02 border border-solar-base1">
             <span className="font-bold text-solar-red block mb-0.5">Dispute Reason:</span>
@@ -185,11 +206,14 @@ export const BountyCard: React.FC<BountyCardProps> = ({
               </a>
             </div>
           )}
+          <p className="font-sans text-[11px] text-solar-base00">
+            Funds remain locked in escrow. Counter-evidence will be adjudicated by secondary consensus.
+          </p>
         </div>
       )}
 
-      {/* Status 4 & 5: Settled (AUDIT_APPROVED or AUDIT_REJECTED) */}
-      {(bounty.status === 4 || bounty.status === 5) && (
+      {/* Status 5 & 6: Settled (AUDIT_APPROVED or AUDIT_REJECTED) */}
+      {(bounty.status === 5 || bounty.status === 6) && (
         <div className="p-3 bg-solar-base3 rounded border border-solar-base1 space-y-2 font-mono text-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
@@ -207,16 +231,16 @@ export const BountyCard: React.FC<BountyCardProps> = ({
           </div>
 
           <div className="text-[11px] text-solar-base01 flex justify-between border-t border-solar-base1/40 pt-1.5">
-            <span>Settlement:</span>
+            <span>Settlement Disbursed:</span>
             <span className="font-bold text-solar-base03">{verdictDisplay.payoutRatio}</span>
           </div>
         </div>
       )}
 
-      {/* Status 6: CANCELLED */}
-      {bounty.status === 6 && (
+      {/* Status 7: CANCELLED */}
+      {bounty.status === 7 && (
         <div className="p-2.5 bg-solar-base1/10 rounded border border-solar-base1 text-xs font-mono text-solar-base01">
-          Bounty cancelled and reclaimed by project owner.
+          Bounty cancelled and escrow reclaimed by project owner.
         </div>
       )}
 
@@ -271,17 +295,17 @@ export const BountyCard: React.FC<BountyCardProps> = ({
             </button>
           )}
 
-          {/* Status 2: AWAITING_PAYOUT -> Dispute or Finalize */}
+          {/* Status 2: AWAITING_PAYOUT -> Project Owner can Dispute, or Anyone can Finalize */}
           {bounty.status === 2 && (
             <>
-              {isParty && (
+              {isOwner && (
                 <button
                   onClick={() => onOpenDispute(bounty)}
                   disabled={isProcessing}
                   className="px-3 py-1.5 bg-solar-red/20 hover:bg-solar-red/30 text-solar-red rounded font-mono text-xs font-bold transition-colors border border-solar-red flex items-center space-x-1"
                 >
                   <AlertTriangle className="w-3 h-3" />
-                  <span>Raise Dispute</span>
+                  <span>Challenge Approval (Owner Dispute)</span>
                 </button>
               )}
               <button
@@ -295,8 +319,32 @@ export const BountyCard: React.FC<BountyCardProps> = ({
             </>
           )}
 
-          {/* Status 3: DISPUTED -> Appellate counter-evidence or Admin resolution */}
+          {/* Status 3: AWAITING_REFUND -> Auditor can Dispute, or Anyone can Finalize Refund */}
           {bounty.status === 3 && (
+            <>
+              {isAuditor && (
+                <button
+                  onClick={() => onOpenDispute(bounty)}
+                  disabled={isProcessing}
+                  className="px-3 py-1.5 bg-solar-red/20 hover:bg-solar-red/30 text-solar-red rounded font-mono text-xs font-bold transition-colors border border-solar-red flex items-center space-x-1"
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>Challenge Rejection (Auditor Dispute)</span>
+                </button>
+              )}
+              <button
+                onClick={() => onFinalizeSettlement(bounty.bounty_id)}
+                disabled={isProcessing}
+                className="px-3 py-1.5 bg-solar-green hover:bg-solar-green/90 text-solar-base3 rounded font-mono text-xs font-bold transition-all shadow-sm flex items-center space-x-1"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                <span>Finalize Refund to Owner</span>
+              </button>
+            </>
+          )}
+
+          {/* Status 4: DISPUTED -> Appellate counter-evidence or Admin resolution */}
+          {bounty.status === 4 && (
             <>
               <button
                 onClick={() => onOpenAppeal(bounty)}
@@ -326,8 +374,8 @@ export const BountyCard: React.FC<BountyCardProps> = ({
             </>
           )}
 
-          {/* Status 4 & 5: Inspect Dossier */}
-          {(bounty.status === 4 || bounty.status === 5) && (
+          {/* Status 5 & 6: Settled -> Inspect Dossier */}
+          {(bounty.status === 5 || bounty.status === 6) && (
             <button
               onClick={() => onInspect(bounty)}
               className="px-3 py-1.5 bg-solar-base3 hover:bg-solar-base1/30 text-solar-base02 rounded font-mono text-xs font-semibold transition-colors flex items-center space-x-1.5 border border-solar-base1"

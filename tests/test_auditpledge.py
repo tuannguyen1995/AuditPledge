@@ -128,10 +128,10 @@ class TestAuditPledgeContract:
         assert "ignore all previous instructions" not in clean
 
     def test_appellate_court_dispute_resolution(self):
-        """Verify that appellate arbitration resolves DISPUTED bounties to AUDIT_APPROVED or AUDIT_REJECTED."""
-        STATUS_DISPUTED = 3
-        STATUS_APPROVED = 4
-        STATUS_REJECTED = 5
+        """Verify that appellate arbitration resolves DISPUTED bounties to AUDIT_APPROVED (5) or AUDIT_REJECTED (6)."""
+        STATUS_DISPUTED = 4
+        STATUS_APPROVED = 5
+        STATUS_REJECTED = 6
 
         # Case 1: Appellate confirms validity
         bounty_state = STATUS_DISPUTED
@@ -140,7 +140,7 @@ class TestAuditPledgeContract:
             bounty_state = STATUS_APPROVED
         else:
             bounty_state = STATUS_REJECTED
-        assert bounty_state == 4
+        assert bounty_state == 5
 
         # Case 2: Appellate rejects frivolous dispute
         bounty_state = STATUS_DISPUTED
@@ -149,7 +149,7 @@ class TestAuditPledgeContract:
             bounty_state = STATUS_APPROVED
         else:
             bounty_state = STATUS_REJECTED
-        assert bounty_state == 5
+        assert bounty_state == 6
 
     def test_platform_admin_emergency_override(self):
         """Verify platform admin arbitration role."""

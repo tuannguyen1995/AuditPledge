@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck, Terminal, ExternalLink, Settings, AlertTriangle, Wallet, UserCheck } from "lucide-react";
+import { ShieldCheck, Terminal, ExternalLink, Settings, AlertTriangle, Wallet, UserCheck, LogOut } from "lucide-react";
 import { switchToStudioNet } from "../config/genlayer";
 import { shortenAddress } from "../utils/helpers";
 
@@ -8,6 +8,7 @@ interface NavbarProps {
   balance: string;
   isConnecting: boolean;
   onConnect: () => void;
+  onDisconnect?: () => void;
   contractAddress: string;
   onUpdateContractAddress: (addr: string) => void;
   userRole: "PROJECT OWNER" | "SECURITY AUDITOR" | "PLATFORM ADMIN" | "GUEST";
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   balance,
   isConnecting,
   onConnect,
+  onDisconnect,
   contractAddress,
   onUpdateContractAddress,
   userRole,
@@ -104,11 +106,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Wallet Connect & Balance */}
             {account ? (
-              <div className="flex items-center space-x-2 bg-solar-base3 px-3 py-1.5 rounded border border-solar-base1 font-mono text-xs">
-                <div className="text-right">
-                  <div className="font-bold text-solar-base03">{shortenAddress(account)}</div>
-                  <div className="text-[11px] text-solar-cyan font-semibold">{balance} GEN</div>
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 bg-solar-base3 px-3 py-1.5 rounded border border-solar-base1 font-mono text-xs shadow-inner">
+                  <div className="text-right">
+                    <div className="font-bold text-solar-base03">{shortenAddress(account)}</div>
+                    <div className="text-[11px] text-solar-cyan font-bold tracking-tight">{balance} GEN</div>
+                  </div>
                 </div>
+                {onDisconnect && (
+                  <button
+                    onClick={onDisconnect}
+                    title="Disconnect Wallet"
+                    className="flex items-center space-x-1 px-2.5 py-1.5 bg-solar-red/10 hover:bg-solar-red/20 text-solar-red font-mono text-xs rounded border border-solar-red/30 transition-all shadow-sm active:scale-95"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline font-semibold">Disconnect</span>
+                  </button>
+                )}
               </div>
             ) : (
               <button
