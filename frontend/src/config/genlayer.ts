@@ -18,6 +18,13 @@ export const DEFAULT_CONTRACT_ADDRESS = "0x8992a7Db4b0d0C847E45C51aF8125C4378A69
 // ABI definition for AuditPledge Advanced Intelligent Contract
 export const AUDIT_PLEDGE_ABI = [
   {
+    name: "set_admin_once",
+    type: "function",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
     name: "create_audit_bounty",
     type: "function",
     inputs: [

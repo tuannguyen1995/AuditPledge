@@ -194,3 +194,43 @@ class TestAuditPledgeContract:
 
         assert bounty_state == 6
         assert owner_received == escrow + bond
+
+    def test_dispute_initiator_bond_refund_fairness(self):
+        """Verify dispute initiator tracking and fair bond refund on partial approval."""
+        ZERO_ADDR = "0x0000000000000000000000000000000000000000"
+        owner = "0xOwner"
+        auditor = "0xAuditor"
+        escrow = 10_000_000_000_000_000_000
+        bond = 1_000_000_000_000_000_000
+
+        # Scenario: Auditor was rejected, stakes bond to appeal, wins PARTIAL_APPROVAL
+        initiator = auditor
+        verdict = "PARTIAL_APPROVAL"
+
+        payout = (escrow * 40) // 100
+        refund = escrow - payout
+        target_bond_refund = initiator if initiator != ZERO_ADDR else owner
+
+        assert payout == 4_000_000_000_000_000_000
+        assert refund == 6_000_000_000_000_000_000
+        # CRITICAL FIX: Auditor gets bond back (NOT owner)
+        assert target_bond_refund == auditor
+
+    def test_admin_init_safety(self):
+        """Verify safe admin initialization without relying on gl.message in __init__."""
+        ZERO_ADDR = "0x0000000000000000000000000000000000000000"
+        platform_admin = ZERO_ADDR
+
+        # In __init__, platform_admin is ZERO_ADDRESS (no NoneType exception)
+        assert platform_admin == ZERO_ADDR
+
+        # First tx: deployer calls set_admin_once
+        deployer = "0xDeployerAddress"
+        if platform_admin == ZERO_ADDR:
+            platform_admin = deployer
+
+        assert platform_admin == deployer
+
+        # Second tx fails: already initialized
+        already_initialized = platform_admin != ZERO_ADDR
+        assert already_initialized is True

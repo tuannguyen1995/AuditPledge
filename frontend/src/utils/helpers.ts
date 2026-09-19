@@ -28,6 +28,7 @@ export interface AuditBountyData {
   dispute_reason: string;
   appeal_url: string;
   dispute_bond?: string;
+  dispute_initiator?: string;
 }
 
 export function shortenAddress(addr: string, chars = 4): string {

@@ -43,6 +43,7 @@ class AuditBounty:
     bounty_id: str
     project_owner: Address
     auditor: Address
+    dispute_initiator: Address    # Explicitly tracks who staked the dispute bond
     escrow_amount: bigint
     dispute_bond: bigint          # Staked bond by appellant to prevent frivolous disputes
     target_repo_url: str
@@ -81,13 +82,22 @@ class Contract(gl.Contract):
     total_escrow_locked: bigint
     total_audits_resolved: u32
     bounty_counter: u64
-    platform_admin: str
+    platform_admin: Address
 
     def __init__(self):
+        # GenVM auto-initializes TreeMap and DynArray. Do NOT reassign in __init__.
         self.total_escrow_locked = bigint(0)
         self.total_audits_resolved = u32(0)
         self.bounty_counter = u64(0)
-        self.platform_admin = _addr_str(gl.message.sender_address).lower()
+        # Safe default to avoid 'NoneType' error during schema initialization
+        self.platform_admin = Address(ZERO_ADDRESS)
+
+    @gl.public.write
+    def set_admin_once(self) -> None:
+        """Sets the platform admin to the deployer on the first transaction."""
+        if _addr_str(self.platform_admin) != ZERO_ADDRESS:
+            raise gl.UserError("Platform admin is already initialized.")
+        self.platform_admin = gl.message.sender_address
 
     @gl.public.write.payable
     def create_audit_bounty(self, target_repo_url: str, scope_spec: str, duration_blocks: int) -> str:
@@ -109,12 +119,13 @@ class Contract(gl.Contract):
         bounty_id = f"audit-{int(self.bounty_counter)}"
         current_block = u256(int(self.bounty_counter))
         expires_at = current_block + duration
-        empty_auditor = Address(ZERO_ADDRESS)
+        empty_address = Address(ZERO_ADDRESS)
 
         new_bounty = AuditBounty(
             bounty_id=bounty_id,
             project_owner=gl.message.sender_address,
-            auditor=empty_auditor,
+            auditor=empty_address,
+            dispute_initiator=empty_address,
             escrow_amount=escrow,
             dispute_bond=bigint(0),
             target_repo_url=clean_repo,
@@ -365,6 +376,7 @@ Respond ONLY with valid JSON without markdown fences:
         if not clean_reason or len(clean_reason) < 5:
             raise gl.UserError("Please provide a substantive dispute reason (at least 5 characters).")
 
+        b.dispute_initiator = caller
         b.dispute_bond = staked_bond
         b.status = u8(4)  # DISPUTED
         b.disputed = True
@@ -508,6 +520,7 @@ Respond ONLY with valid JSON:
 
         escrow_val = b.escrow_amount
         bond_val = b.dispute_bond
+        initiator = b.dispute_initiator
         b.dispute_bond = bigint(0)
 
         self.total_escrow_locked = self.total_escrow_locked - escrow_val
@@ -515,9 +528,12 @@ Respond ONLY with valid JSON:
 
         if final_verdict == "AUDIT_PASSED":
             b.status = u8(5)  # AUDIT_APPROVED
-            # Auditor receives full bounty + refund of dispute bond (if auditor appealed)
-            total_payout = escrow_val + bond_val
-            gl.get_contract_at(b.auditor).emit_transfer(value=u256(total_payout))
+            # Auditor receives full bounty
+            gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val))
+            # Bond returned to auditor (if auditor appealed) or awarded to auditor (if owner falsely challenged)
+            if bond_val > bigint(0):
+                gl.get_contract_at(b.auditor).emit_transfer(value=u256(bond_val))
+
         elif final_verdict == "PARTIAL_APPROVAL":
             b.status = u8(5)  # AUDIT_APPROVED (partial)
             payout = (escrow_val * bigint(40)) // bigint(100)
@@ -525,17 +541,23 @@ Respond ONLY with valid JSON:
             if payout > bigint(0):
                 gl.get_contract_at(b.auditor).emit_transfer(value=u256(payout))
             if refund > bigint(0):
-                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund + bond_val))
+                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund))
+            # On partial merit, bond is 100% refunded back to whoever staked it
+            if bond_val > bigint(0):
+                target_refund = initiator if _addr_str(initiator) != ZERO_ADDRESS else b.project_owner
+                gl.get_contract_at(target_refund).emit_transfer(value=u256(bond_val))
+
         else:
             b.status = u8(6)  # AUDIT_REJECTED
-            # Owner receives full escrow refund + confiscated dispute bond
-            total_refund = escrow_val + bond_val
-            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(total_refund))
+            # Owner receives full escrow refund
+            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
+            # Bond returned to owner (if owner appealed) or awarded to owner (if auditor falsely appealed)
+            if bond_val > bigint(0):
+                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(bond_val))
 
     @gl.public.write
     def resolve_admin_arbitration(self, bounty_id: str, admin_verdict: str) -> None:
-        caller = _addr_str(gl.message.sender_address).lower()
-        if caller != self.platform_admin:
+        if gl.message.sender_address != self.platform_admin:
             raise gl.UserError("Only platform admin can perform emergency arbitration.")
 
         if bounty_id not in self.bounties:
@@ -555,6 +577,7 @@ Respond ONLY with valid JSON:
 
         escrow_val = b.escrow_amount
         bond_val = b.dispute_bond
+        initiator = b.dispute_initiator
         b.dispute_bond = bigint(0)
 
         self.total_escrow_locked = self.total_escrow_locked - escrow_val
@@ -562,7 +585,9 @@ Respond ONLY with valid JSON:
 
         if clean_v == "AUDIT_PASSED":
             b.status = u8(5)
-            gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val + bond_val))
+            gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val))
+            if bond_val > bigint(0):
+                gl.get_contract_at(b.auditor).emit_transfer(value=u256(bond_val))
         elif clean_v == "PARTIAL_APPROVAL":
             b.status = u8(5)
             payout = (escrow_val * bigint(40)) // bigint(100)
@@ -570,10 +595,15 @@ Respond ONLY with valid JSON:
             if payout > bigint(0):
                 gl.get_contract_at(b.auditor).emit_transfer(value=u256(payout))
             if refund > bigint(0):
-                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund + bond_val))
+                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund))
+            if bond_val > bigint(0):
+                target_refund = initiator if _addr_str(initiator) != ZERO_ADDRESS else b.project_owner
+                gl.get_contract_at(target_refund).emit_transfer(value=u256(bond_val))
         else:
             b.status = u8(6)
-            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val + bond_val))
+            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
+            if bond_val > bigint(0):
+                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(bond_val))
 
     @gl.public.write
     def cancel_or_reclaim(self, bounty_id: str) -> None:
@@ -617,6 +647,7 @@ Respond ONLY with valid JSON:
             "bounty_id": b.bounty_id,
             "project_owner": _addr_str(b.project_owner),
             "auditor": _addr_str(b.auditor),
+            "dispute_initiator": _addr_str(b.dispute_initiator),
             "escrow_amount": str(b.escrow_amount),
             "dispute_bond": str(b.dispute_bond),
             "target_repo_url": b.target_repo_url,
@@ -655,6 +686,7 @@ Respond ONLY with valid JSON:
                 "bounty_id": b.bounty_id,
                 "project_owner": _addr_str(b.project_owner),
                 "auditor": _addr_str(b.auditor),
+                "dispute_initiator": _addr_str(b.dispute_initiator),
                 "escrow_amount": str(b.escrow_amount),
                 "dispute_bond": str(b.dispute_bond),
                 "target_repo_url": b.target_repo_url,
@@ -680,6 +712,6 @@ Respond ONLY with valid JSON:
             "total_bounties": len(self.bounty_ids),
             "total_escrow_locked": str(self.total_escrow_locked),
             "total_audits_resolved": int(self.total_audits_resolved),
-            "platform_admin": self.platform_admin,
+            "platform_admin": _addr_str(self.platform_admin),
         }
         return json.dumps(data)
