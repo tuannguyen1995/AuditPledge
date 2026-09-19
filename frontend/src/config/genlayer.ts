@@ -1,3 +1,6 @@
+import { createClient } from "genlayer-js";
+import { studionet } from "genlayer-js/chains";
+
 // GenLayer studionet configuration
 export const STUDIONET_CONFIG = {
   chainId: 61999,
@@ -14,6 +17,10 @@ export const STUDIONET_CONFIG = {
 
 // Default deployed contract address on studionet
 export const DEFAULT_CONTRACT_ADDRESS = "0x76B754983A19860d11d85999d5A1e3e33763e03e";
+
+export const genlayerClient = createClient({
+  chain: studionet,
+});
 
 // ABI definition for AuditPledge Advanced Intelligent Contract
 export const AUDIT_PLEDGE_ABI = [

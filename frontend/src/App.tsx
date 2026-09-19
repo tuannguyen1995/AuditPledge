@@ -13,6 +13,7 @@ import {
   DEFAULT_CONTRACT_ADDRESS,
   AUDIT_PLEDGE_ABI,
   switchToStudioNet,
+  genlayerClient,
 } from "./config/genlayer";
 import { AuditBountyData, parseGENToWei } from "./utils/helpers";
 
@@ -155,19 +156,16 @@ export function App() {
   const refreshOnChainData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const client = getPublicClient();
-
-      // Read Stats
+      // Read Stats via GenLayer Client
       try {
-        const statsRaw = await client.readContract({
+        const statsRaw = await genlayerClient.readContract({
           address: contractAddress as `0x${string}`,
-          abi: AUDIT_PLEDGE_ABI,
           functionName: "get_stats",
           args: [],
         });
 
-        if (typeof statsRaw === "string") {
-          const parsed = JSON.parse(statsRaw);
+        const parsed = typeof statsRaw === "string" ? JSON.parse(statsRaw) : statsRaw;
+        if (parsed && typeof parsed === "object") {
           setStats({
             totalEscrowLocked: parsed.total_escrow_locked || "0",
             totalAuditsResolved: Number(parsed.total_audits_resolved || 0),
@@ -181,21 +179,18 @@ export function App() {
         console.warn("Could not read stats view:", err);
       }
 
-      // Read Bounties paginated
+      // Read Bounties paginated via GenLayer Client
       try {
-        const bountiesRaw = await client.readContract({
+        const bountiesRaw = await genlayerClient.readContract({
           address: contractAddress as `0x${string}`,
-          abi: AUDIT_PLEDGE_ABI,
           functionName: "get_bounties_paginated",
           args: [0, 100],
         });
 
-        if (typeof bountiesRaw === "string") {
-          const parsedList: AuditBountyData[] = JSON.parse(bountiesRaw);
-          if (Array.isArray(parsedList)) {
-            setBounties(parsedList);
-            return;
-          }
+        const parsedList = typeof bountiesRaw === "string" ? JSON.parse(bountiesRaw) : bountiesRaw;
+        if (Array.isArray(parsedList)) {
+          setBounties(parsedList);
+          return;
         }
         setBounties([]);
       } catch (err) {
@@ -208,7 +203,7 @@ export function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [contractAddress, getPublicClient]);
+  }, [contractAddress]);
 
   // Periodic Balance Polling (every 6 seconds while connected)
   useEffect(() => {
