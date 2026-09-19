@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { PlusCircle, Search, AlertCircle, CheckCircle, Terminal, ShieldAlert, Radio } from "lucide-react";
+import { PlusCircle, Search, AlertCircle, CheckCircle, Terminal, ShieldAlert, Radio, Sparkles } from "lucide-react";
 import { createPublicClient, http, encodeFunctionData } from "viem";
 import { Navbar } from "./components/Navbar";
 import { StatsBar } from "./components/StatsBar";
@@ -8,6 +8,7 @@ import { CreateBountyModal } from "./components/CreateBountyModal";
 import { SubmitReportModal } from "./components/SubmitReportModal";
 import { JuryInspectorModal } from "./components/JuryInspectorModal";
 import { DisputeModal } from "./components/DisputeModal";
+import { TestAdjudicationModal } from "./components/TestAdjudicationModal";
 import {
   STUDIONET_CONFIG,
   DEFAULT_CONTRACT_ADDRESS,
@@ -61,6 +62,29 @@ export function App() {
     bounty: AuditBountyData | null;
     mode: "DISPUTE" | "APPEAL";
   }>({ isOpen: false, bounty: null, mode: "DISPUTE" });
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+
+  const handleSelectTestScenario = (scenarioBounty: AuditBountyData) => {
+    setNotice({
+      type: "info",
+      msg: `⚡ Live Test Scenario Loaded: ${scenarioBounty.bounty_id} (${scenarioBounty.verdict}). Simulating On-Chain AI Multi-Validator Consensus...`,
+    });
+    setBounties((prev) => {
+      const exists = prev.some((b) => b.bounty_id === scenarioBounty.bounty_id);
+      if (exists) {
+        return prev.map((b) => (b.bounty_id === scenarioBounty.bounty_id ? scenarioBounty : b));
+      }
+      return [scenarioBounty, ...prev];
+    });
+
+    setTimeout(() => {
+      setSelectedBountyForInspect(scenarioBounty);
+      setNotice({
+        type: "success",
+        msg: `AI Multi-Validator Consensus Complete for ${scenarioBounty.bounty_id}! Verdict: ${scenarioBounty.verdict} (Technical Depth: ${scenarioBounty.depth_score}/100)`,
+      });
+    }, 1000);
+  };
 
   const getUserRole = (): "PROJECT OWNER" | "SECURITY AUDITOR" | "PLATFORM ADMIN" | "GUEST" => {
     if (!account) return "GUEST";
@@ -579,6 +603,14 @@ export function App() {
                 <span>Deploy Audit Escrow Bounty</span>
               </button>
 
+              <button
+                onClick={() => setIsTestModalOpen(true)}
+                className="px-4 py-2.5 bg-neon-cyan/15 hover:bg-neon-cyan/25 text-neon-cyan border border-neon-cyan/40 font-mono font-bold text-xs rounded-md shadow-lg transition-all flex items-center space-x-2 active:scale-95 tracking-wide"
+              >
+                <Sparkles className="w-4 h-4 text-neon-cyan animate-pulse" />
+                <span>⚡ Test Live Adjudication Flow</span>
+              </button>
+
               <a
                 href="https://studio.genlayer.com"
                 target="_blank"
@@ -653,13 +685,22 @@ export function App() {
                   ? `The smart contract at ${contractAddress.slice(0, 10)}... has 0 active escrow vaults. Lock GEN and deploy your project's first live audit bounty on GenLayer StudioNet!`
                   : "No audit escrow pools match your current filter tab or search parameters."}
               </p>
-              <button
-                onClick={() => setIsCreateOpen(true)}
-                className="px-4 py-2 bg-gradient-to-r from-neon-cyan to-neon-emerald text-cyber-bg rounded-md text-xs font-bold inline-flex items-center space-x-1.5 shadow-md active:scale-95"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Deploy Bounty on GenLayer</span>
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                <button
+                  onClick={() => setIsCreateOpen(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-neon-cyan to-neon-emerald text-cyber-bg rounded-md text-xs font-bold inline-flex items-center space-x-1.5 shadow-md active:scale-95"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Deploy Bounty on GenLayer</span>
+                </button>
+                <button
+                  onClick={() => setIsTestModalOpen(true)}
+                  className="px-4 py-2 bg-neon-cyan/15 hover:bg-neon-cyan/25 text-neon-cyan border border-neon-cyan/40 rounded-md text-xs font-bold inline-flex items-center space-x-1.5 shadow-md active:scale-95"
+                >
+                  <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                  <span>⚡ 1-Click Interactive Test Flow</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -740,6 +781,12 @@ export function App() {
         onSubmitDispute={handleRaiseDispute}
         onSubmitAppeal={handleAdjudicateAppeal}
         isSubmitting={isActionLoading}
+      />
+
+      <TestAdjudicationModal
+        isOpen={isTestModalOpen}
+        onClose={() => setIsTestModalOpen(false)}
+        onSelectScenario={handleSelectTestScenario}
       />
     </div>
   );
