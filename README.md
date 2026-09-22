@@ -10,7 +10,7 @@
 > **GitHub Repository**: [https://github.com/tuannguyen1995/AuditPledge](https://github.com/tuannguyen1995/AuditPledge)  
 > **Track**: Agentic Economy Infrastructure / Subjective Consensus / Security  
 > **Target Network**: GenLayer `studionet` (Chain ID: `61999` / `0xF1EF`, RPC: `https://studio.genlayer.com/api`)  
-> **Deployed Contract Address (v2 Remediated - Full Untruncated Source)**: `0xc2f3f135dceAD94BC4F1132DBF98f1d2eb617138`  
+> **Deployed Contract Address (Production v2.1)**: `0xa7970e8822C94D5ACb29e80Fd557AB3321F1f05B`  
 
 ---
 
@@ -123,8 +123,8 @@ To satisfy all requirements from the GenLayer protocol steward review, AuditPled
 | **4. Restrict Appeal Evidence & Settlement Authority** | `raise_dispute` requires a 10% bond and binds `b.appeal_url` strictly to the appellant; `finalize_settlement` and appeal trigger are restricted strictly to intended parties (`project_owner` / `auditor`). | Verified: Tx `0xe484393e...` locked 0.1 GEN bond & recorded appeal evidence. Settlement executed autonomously without admin intervention. |
 
 ### Verified On-Chain Transactions (GenLayer StudioNet - Chain ID: 61999):
-- **Intelligent Contract (v2.1 Full Untruncated Snapshot)**: [`0xc2f3f135dceAD94BC4F1132DBF98f1d2eb617138`](https://studio.genlayer.com) (Deploy Tx: `0x496d835bfc596a61b091720fd0a06d14a9ebbc72f3b9206e4326b566d4110554`)
-- **Intelligent Contract (v2 End-to-End Trial)**: [`0x719fa63855f8f88640f81802057b35e689d927c0`](https://studio.genlayer.com)
+- **Intelligent Contract (Production v2.1)**: [`0xa7970e8822C94D5ACb29e80Fd557AB3321F1f05B`](https://studio.genlayer.com)
+- **Intelligent Contract (Trial Test Suite v2)**: [`0x719fa63855f8f88640f81802057b35e689d927c0`](https://studio.genlayer.com)
   - **Tx 1 (Create Bounty - 1.0 GEN Escrow)**: `0xbf0e101787bb01ab83343882259f260a55979f504bacf19e59aa81c6ae331420`
   - **Tx 2 (Submit Vulnerability Report)**: `0x59ce7b13312ae11b62eccb6407e060d2c3de46cca11c33c209b3e2f2131cf036`
   - **Tx 3 (Path 1 - AI Multi-Validator Adjudication)**: `0xfd2b2ec4f02ef392858e2e10c0bf25ea8fad68c37d75d24decbbf271b022aee5`
