@@ -33,6 +33,7 @@ export function App() {
       saved &&
       (saved.toLowerCase() === "0x8992a7db4b0d0c847e45c51af8125c4378a690b8".toLowerCase() ||
         saved.toLowerCase() === "0x76b754983a19860d11d85999d5a1e3e33763e03e".toLowerCase() ||
+        saved.toLowerCase() === "0x719fa63855f8f88640f81802057b35e689d927c0".toLowerCase() ||
         saved.toLowerCase() === "0x0000000000000000000000000000000000000000")
     ) {
       localStorage.setItem("auditpledge_contract_addr", DEFAULT_CONTRACT_ADDRESS);

@@ -245,8 +245,8 @@ class Contract(gl.Contract):
                     "reason": "Could not access or render report URL. Report is missing, private, or 404."
                 }
 
-            clean_source = _sanitize_text(raw_source[:10000])
-            clean_report = _sanitize_text(raw_report[:7000])
+            clean_source = _sanitize_text(raw_source)
+            clean_report = _sanitize_text(raw_report)
             clean_scope = _sanitize_text(scope_spec)
 
             # 3. Comprehensive prompt giving validators BOTH the target code and the PoC
@@ -461,7 +461,7 @@ Respond ONLY with valid JSON without markdown fences:
             except Exception:
                 pass
 
-            clean_source = _sanitize_text(raw_source[:9000]) if raw_source else "[SOURCE UNAVAILABLE]"
+            clean_source = _sanitize_text(raw_source) if raw_source else "[SOURCE UNAVAILABLE]"
 
             # 2. Fetch original report
             raw_report = ""
@@ -469,7 +469,7 @@ Respond ONLY with valid JSON without markdown fences:
                 raw_report = gl.nondet.web.render(report_url, mode="text")
             except Exception:
                 pass
-            clean_report = _sanitize_text(raw_report[:4000]) if raw_report else "[ORIGINAL REPORT UNAVAILABLE]"
+            clean_report = _sanitize_text(raw_report) if raw_report else "[ORIGINAL REPORT UNAVAILABLE]"
 
             # 3. Fetch appellant counter-evidence
             raw_appeal = ""
@@ -487,7 +487,7 @@ Respond ONLY with valid JSON without markdown fences:
                     "reason": "Appellate counter-evidence URL is inaccessible. Dispute dismissed."
                 }
 
-            clean_appeal = _sanitize_text(raw_appeal[:6000])
+            clean_appeal = _sanitize_text(raw_appeal)
             clean_scope = _sanitize_text(scope_spec)
 
             prompt = f"""You are the Appellate Chief Justice of the GenLayer Security Court.
