@@ -161,6 +161,26 @@ export const JuryInspectorModal: React.FC<JuryInspectorModalProps> = ({
                 <ExternalLink className="w-3 h-3 flex-shrink-0" />
               </a>
             </div>
+            {bounty.commit_hash && (
+              <div className="flex justify-between p-2.5">
+                <span className="text-cyber-muted">Code Revision (Commit SHA):</span>
+                <span className="font-mono text-neon-emerald font-bold">{bounty.commit_hash}</span>
+              </div>
+            )}
+            {bounty.code_url && (
+              <div className="flex justify-between p-2.5">
+                <span className="text-cyber-muted">Inspected Source Code:</span>
+                <a
+                  href={bounty.code_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-neon-cyan hover:underline flex items-center space-x-1"
+                >
+                  <span className="truncate max-w-xs">{bounty.code_url}</span>
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                </a>
+              </div>
+            )}
             {bounty.report_url && (
               <div className="flex justify-between p-2.5">
                 <span className="text-cyber-muted">Audit Report & PoC:</span>

@@ -5,7 +5,7 @@ import { DEMO_PRESETS, DemoPreset } from "../utils/sampleData";
 interface CreateBountyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (repoUrl: string, scope: string, amountGen: string, durationBlocks: number) => Promise<void>;
+  onSubmit: (repoUrl: string, commitHash: string, codeUrl: string, scope: string, amountGen: string, durationBlocks: number) => Promise<void>;
   isSubmitting: boolean;
 }
 
@@ -16,6 +16,8 @@ export const CreateBountyModal: React.FC<CreateBountyModalProps> = ({
   isSubmitting,
 }) => {
   const [repoUrl, setRepoUrl] = useState("");
+  const [commitHash, setCommitHash] = useState("");
+  const [codeUrl, setCodeUrl] = useState("");
   const [scope, setScope] = useState("");
   const [amount, setAmount] = useState("1.0");
   const [duration, setDuration] = useState(6000);
@@ -25,6 +27,8 @@ export const CreateBountyModal: React.FC<CreateBountyModalProps> = ({
 
   const handleApplyPreset = (preset: DemoPreset) => {
     setRepoUrl(preset.repoUrl);
+    setCommitHash(preset.commitHash);
+    setCodeUrl(preset.codeUrl);
     setScope(preset.scope);
     setAmount(preset.amount);
     setDuration(preset.duration);
@@ -39,6 +43,14 @@ export const CreateBountyModal: React.FC<CreateBountyModalProps> = ({
       setError("Please provide a valid public repository URL (http/https).");
       return;
     }
+    if (!commitHash.trim() || commitHash.trim().length < 7) {
+      setError("Please provide a valid commit hash or immutable tag (at least 7 characters).");
+      return;
+    }
+    if (!codeUrl.trim() || !codeUrl.startsWith("http")) {
+      setError("Please provide a valid raw source code URL (http/https) for the target revision.");
+      return;
+    }
     if (!scope.trim() || scope.trim().length < 10) {
       setError("Please specify clear audit requirements and security invariants (at least 10 chars).");
       return;
@@ -49,7 +61,14 @@ export const CreateBountyModal: React.FC<CreateBountyModalProps> = ({
     }
 
     try {
-      await onSubmit(repoUrl.trim(), scope.trim(), amount.trim(), Number(duration) || 6000);
+      await onSubmit(
+        repoUrl.trim(),
+        commitHash.trim(),
+        codeUrl.trim(),
+        scope.trim(),
+        amount.trim(),
+        Number(duration) || 6000
+      );
       onClose();
     } catch (err: any) {
       setError(err?.message || "Failed to create audit escrow.");
@@ -130,8 +149,45 @@ export const CreateBountyModal: React.FC<CreateBountyModalProps> = ({
               className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-cyan font-mono text-xs"
             />
             <p className="text-[11px] text-cyber-subtle mt-1 font-sans">
-              Must be publicly accessible. GenLayer validators fetch and verify code via on-chain web rendering.
+              Main repository link for project context and documentation.
             </p>
+          </div>
+
+          {/* Code Revision (Commit Hash) & Raw Source URL */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
+                Code Revision (Commit SHA / Tag) *
+              </label>
+              <input
+                type="text"
+                required
+                value={commitHash}
+                onChange={(e) => setCommitHash(e.target.value)}
+                placeholder="e.g. cad46920be2ac34ad42e5ee237cbf1706ccee6c7"
+                className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-xs text-white focus:outline-none focus:border-neon-cyan font-mono"
+              />
+              <p className="text-[10px] text-cyber-subtle mt-0.5 font-sans">
+                Binds audit evidence to an immutable snapshot.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
+                Pinned Raw Source Code URL *
+              </label>
+              <input
+                type="url"
+                required
+                value={codeUrl}
+                onChange={(e) => setCodeUrl(e.target.value)}
+                placeholder="https://raw.githubusercontent.com/.../Vault.sol"
+                className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-xs text-white focus:outline-none focus:border-neon-cyan font-mono"
+              />
+              <p className="text-[10px] text-cyber-subtle mt-0.5 font-sans">
+                Rendered directly into AI validator prompts.
+              </p>
+            </div>
           </div>
 
           {/* Scope & Invariants */}

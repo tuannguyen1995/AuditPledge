@@ -4,6 +4,8 @@ export interface AuditBountyData {
   auditor: string;
   escrow_amount: string;
   target_repo_url: string;
+  commit_hash?: string;
+  code_url?: string;
   scope_spec: string;
   report_url: string;
   // Symmetrical Mutually-Protected Status Lifecycle:

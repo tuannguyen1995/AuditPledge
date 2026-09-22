@@ -16,7 +16,7 @@ export const STUDIONET_CONFIG = {
 };
 
 // Default deployed contract address on studionet
-export const DEFAULT_CONTRACT_ADDRESS = "0x76B754983A19860d11d85999d5A1e3e33763e03e";
+export const DEFAULT_CONTRACT_ADDRESS = "0x719fa63855f8f88640f81802057b35e689d927c0";
 
 export const genlayerClient = createClient({
   chain: studionet,
@@ -25,17 +25,12 @@ export const genlayerClient = createClient({
 // ABI definition for AuditPledge Advanced Intelligent Contract
 export const AUDIT_PLEDGE_ABI = [
   {
-    name: "set_admin_once",
-    type: "function",
-    inputs: [],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
     name: "create_audit_bounty",
     type: "function",
     inputs: [
       { name: "target_repo_url", type: "string" },
+      { name: "commit_hash", type: "string" },
+      { name: "code_url", type: "string" },
       { name: "scope_spec", type: "string" },
       { name: "duration_blocks", type: "int" },
     ],
@@ -65,6 +60,7 @@ export const AUDIT_PLEDGE_ABI = [
     inputs: [
       { name: "bounty_id", type: "string" },
       { name: "dispute_reason", type: "string" },
+      { name: "appeal_evidence_url", type: "string" },
     ],
     outputs: [],
     stateMutability: "payable",
@@ -79,20 +75,7 @@ export const AUDIT_PLEDGE_ABI = [
   {
     name: "adjudicate_appeal",
     type: "function",
-    inputs: [
-      { name: "bounty_id", type: "string" },
-      { name: "appeal_evidence_url", type: "string" },
-    ],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
-    name: "resolve_admin_arbitration",
-    type: "function",
-    inputs: [
-      { name: "bounty_id", type: "string" },
-      { name: "admin_verdict", type: "string" },
-    ],
+    inputs: [{ name: "bounty_id", type: "string" }],
     outputs: [],
     stateMutability: "nonpayable",
   },

@@ -7,8 +7,8 @@ interface DisputeModalProps {
   onClose: () => void;
   bounty: AuditBountyData | null;
   mode: "DISPUTE" | "APPEAL";
-  onSubmitDispute: (bountyId: string, reason: string, bondWei: bigint) => Promise<void>;
-  onSubmitAppeal: (bountyId: string, appealUrl: string) => Promise<void>;
+  onSubmitDispute: (bountyId: string, reason: string, appealUrl: string, bondWei: bigint) => Promise<void>;
+  onSubmitAppeal: (bountyId: string) => Promise<void>;
   isSubmitting: boolean;
 }
 
@@ -40,26 +40,26 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
     setError(null);
 
     if (mode === "DISPUTE") {
-      if (!reason.trim() || reason.trim().length < 10) {
-        setError("Please provide a substantive technical justification for disputing this verdict (min 10 characters).");
+      if (!reason.trim() || reason.trim().length < 5) {
+        setError("Please provide a substantive technical justification for disputing this verdict (min 5 characters).");
         return;
       }
-      try {
-        await onSubmitDispute(bounty.bounty_id, reason.trim(), minBondWei);
-        onClose();
-      } catch (err: any) {
-        setError(err?.message || "Failed to raise dispute.");
-      }
-    } else {
       if (!appealUrl.trim() || (!appealUrl.startsWith("http://") && !appealUrl.startsWith("https://"))) {
         setError("Please provide a valid public counter-evidence URL (http/https).");
         return;
       }
       try {
-        await onSubmitAppeal(bounty.bounty_id, appealUrl.trim());
+        await onSubmitDispute(bounty.bounty_id, reason.trim(), appealUrl.trim(), minBondWei);
         onClose();
       } catch (err: any) {
-        setError(err?.message || "Failed to submit appeal.");
+        setError(err?.message || "Failed to raise dispute.");
+      }
+    } else {
+      try {
+        await onSubmitAppeal(bounty.bounty_id);
+        onClose();
+      } catch (err: any) {
+        setError(err?.message || "Failed to trigger appellate adjudication.");
       }
     }
   };
@@ -120,24 +120,40 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
           )}
 
           {mode === "DISPUTE" ? (
-            <div>
-              <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
-                Technical Rebuttal & Dispute Justification *
-              </label>
-              <textarea
-                required
-                rows={4}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Detail why this verdict is mathematically unfeasible, out of scope, or why the depth score was evaluated unfairly..."
-                className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-crimson font-sans"
-              />
-              <p className="text-[11px] text-cyber-subtle mt-1">
-                Halts disbursement immediately and elevates this escrow to the On-Chain Appellate Security Court.
-              </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
+                  Technical Rebuttal & Dispute Justification *
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Detail why this verdict is mathematically unfeasible, out of scope, or why the depth score was evaluated unfairly..."
+                  className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-crimson font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
+                  Appellate Counter-Evidence & Proof URL *
+                </label>
+                <input
+                  type="url"
+                  required
+                  value={appealUrl}
+                  onChange={(e) => setAppealUrl(e.target.value)}
+                  placeholder="https://gist.githubusercontent.com/.../counter_proof.md"
+                  className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-xs text-white focus:outline-none focus:border-neon-crimson font-mono"
+                />
+                <p className="text-[10px] text-cyber-subtle mt-0.5">
+                  Direct public link to executable reproduction traces, bound to this dispute.
+                </p>
+              </div>
 
               {/* 10% Anti-Griefing Bond Notice */}
-              <div className="mt-3 p-3 bg-neon-amber/10 border border-neon-amber/40 rounded-lg flex items-start space-x-2.5">
+              <div className="p-3 bg-neon-amber/10 border border-neon-amber/40 rounded-lg flex items-start space-x-2.5">
                 <Coins className="w-5 h-5 text-neon-amber flex-shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
                   <div className="flex items-center space-x-2">
@@ -147,27 +163,30 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-cyber-muted leading-relaxed">
-                    To prevent malicious griefing and freezing of legitimate funds, raising a dispute requires a 10% security bond deposit.
-                    <span className="text-neon-emerald font-semibold"> If your dispute is upheld, 100% of this bond is refunded to you.</span> If deemed frivolous, the bond is awarded to the counterparty.
+                    Raising a dispute requires a 10% security bond deposit.
+                    <span className="text-neon-emerald font-semibold"> If your dispute is upheld, 100% of this bond is refunded to you.</span>
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <div>
-              <label className="block text-xs font-mono font-bold text-cyber-muted mb-1 uppercase tracking-wider">
-                Appellate Counter-Evidence URL (Gist / PoC Repo) *
-              </label>
-              <input
-                type="url"
-                required
-                value={appealUrl}
-                onChange={(e) => setAppealUrl(e.target.value)}
-                placeholder="https://gist.githubusercontent.com/.../counter_proof.md"
-                className="w-full px-3 py-2 bg-cyber-surface border border-cyber-border rounded-md text-sm text-white focus:outline-none focus:border-neon-crimson font-mono text-xs"
-              />
-              <p className="text-[11px] text-cyber-subtle mt-1">
-                Must be a publicly accessible link with executable reproduction script or test traces.
+            <div className="space-y-3">
+              <div className="p-3 bg-cyber-surface border border-cyber-border rounded-lg space-y-2 text-xs">
+                <div className="flex justify-between font-mono">
+                  <span className="text-cyber-muted">Dispute Initiator:</span>
+                  <span className="font-bold text-neon-amber">{bounty.dispute_initiator || "Appellant"}</span>
+                </div>
+                <div className="flex justify-between font-mono">
+                  <span className="text-cyber-muted">Staked Bond:</span>
+                  <span className="font-bold text-white">{formatGEN(bounty.dispute_bond || "0")}</span>
+                </div>
+                <div className="flex justify-between font-mono">
+                  <span className="text-cyber-muted">Counter-Evidence URL:</span>
+                  <span className="font-bold text-neon-cyan truncate max-w-[240px]">{bounty.appeal_url || "Registered on-chain"}</span>
+                </div>
+              </div>
+              <p className="text-xs text-cyber-muted">
+                Triggering the On-Chain Appellate Security Court will cause GenLayer validators to render the target code revision, original report, and counter-evidence to reach a final, binding consensus verdict.
               </p>
             </div>
           )}

@@ -29,13 +29,17 @@ export function App() {
   // Contract State
   const [contractAddress, setContractAddress] = useState<string>(() => {
     const saved = localStorage.getItem("auditpledge_contract_addr");
-    if (saved && (saved.toLowerCase() === "0x8992a7db4b0d0c847e45c51af8125c4378a690b8".toLowerCase() || saved.toLowerCase() === "0x0000000000000000000000000000000000000000")) {
+    if (
+      saved &&
+      (saved.toLowerCase() === "0x8992a7db4b0d0c847e45c51af8125c4378a690b8".toLowerCase() ||
+        saved.toLowerCase() === "0x76b754983a19860d11d85999d5a1e3e33763e03e".toLowerCase() ||
+        saved.toLowerCase() === "0x0000000000000000000000000000000000000000")
+    ) {
       localStorage.setItem("auditpledge_contract_addr", DEFAULT_CONTRACT_ADDRESS);
       return DEFAULT_CONTRACT_ADDRESS;
     }
     return saved || DEFAULT_CONTRACT_ADDRESS;
   });
-  const [platformAdmin, setPlatformAdmin] = useState<string>("");
 
   // Bounties & Stats (100% On-Chain State)
   const [bounties, setBounties] = useState<AuditBountyData[]>([]);
@@ -86,17 +90,15 @@ export function App() {
     }, 1000);
   };
 
-  const getUserRole = (): "PROJECT OWNER" | "SECURITY AUDITOR" | "PLATFORM ADMIN" | "GUEST" => {
+  const getUserRole = (): "PROJECT OWNER" | "SECURITY AUDITOR" | "GUEST" => {
     if (!account) return "GUEST";
     const accLower = account.toLowerCase();
-    if (platformAdmin && accLower === platformAdmin.toLowerCase()) return "PLATFORM ADMIN";
     if (bounties.some((b) => b.project_owner && b.project_owner.toLowerCase() === accLower)) return "PROJECT OWNER";
     if (bounties.some((b) => b.auditor && b.auditor.toLowerCase() === accLower)) return "SECURITY AUDITOR";
     return "GUEST";
   };
 
   const userRole = getUserRole();
-  const isAdmin = userRole === "PLATFORM ADMIN";
 
   // Viem Public Client for StudioNet direct RPC
   const getPublicClient = useCallback(() => {
@@ -195,9 +197,6 @@ export function App() {
             totalAuditsResolved: Number(parsed.total_audits_resolved || 0),
             totalBounties: Number(parsed.total_bounties || 0),
           });
-          if (parsed.platform_admin) {
-            setPlatformAdmin(parsed.platform_admin);
-          }
         }
       } catch (err) {
         console.warn("Could not read stats view:", err);
@@ -311,14 +310,21 @@ export function App() {
     return txHash;
   };
 
-  // Action: Create Bounty (Real On-Chain)
-  const handleCreateBounty = async (repoUrl: string, scope: string, amountGen: string, durationBlocks: number) => {
+  // Action: Create Bounty (Real On-Chain bound to code revision)
+  const handleCreateBounty = async (
+    repoUrl: string,
+    commitHash: string,
+    codeUrl: string,
+    scope: string,
+    amountGen: string,
+    durationBlocks: number
+  ) => {
     setIsActionLoading(true);
     try {
       const wei = parseGENToWei(amountGen);
       setNotice({ type: "info", msg: "Broadcasting create_audit_bounty transaction to GenLayer StudioNet..." });
 
-      const txHash = await sendContractTx("create_audit_bounty", [repoUrl, scope, durationBlocks], wei);
+      const txHash = await sendContractTx("create_audit_bounty", [repoUrl, commitHash, codeUrl, scope, durationBlocks], wei);
       setNotice({ type: "info", msg: `Transaction broadcasted: ${txHash.slice(0, 10)}... Awaiting on-chain confirmation...` });
 
       await new Promise((resolve) => setTimeout(resolve, 3500));
@@ -385,13 +391,13 @@ export function App() {
     }
   };
 
-  // Action: Raise Dispute (Real On-Chain Symmetrical Dispute with 10% Anti-Griefing Bond)
-  const handleRaiseDispute = async (bountyId: string, reason: string, bondWei: bigint = BigInt(0)) => {
+  // Action: Raise Dispute (Real On-Chain Symmetrical Dispute with 10% Anti-Griefing Bond & Appeal Evidence)
+  const handleRaiseDispute = async (bountyId: string, reason: string, appealUrl: string, bondWei: bigint = BigInt(0)) => {
     setIsActionLoading(true);
     try {
       setNotice({ type: "info", msg: `Staking 10% dispute bond & submitting dispute challenge for ${bountyId} on-chain...` });
 
-      const txHash = await sendContractTx("raise_dispute", [bountyId, reason], bondWei);
+      const txHash = await sendContractTx("raise_dispute", [bountyId, reason, appealUrl], bondWei);
       setNotice({ type: "info", msg: `Dispute bond staked & challenge tx submitted: ${txHash.slice(0, 10)}... Moving to Appellate Court...` });
 
       await new Promise((resolve) => setTimeout(resolve, 3500));
@@ -432,13 +438,13 @@ export function App() {
     }
   };
 
-  // Action: Submit Appellate Counter-Evidence (Real On-Chain Appellate Consensus)
-  const handleAdjudicateAppeal = async (bountyId: string, appealUrl: string) => {
+  // Action: Trigger Appellate Security Court (Real On-Chain Appellate Consensus)
+  const handleAdjudicateAppeal = async (bountyId: string) => {
     setIsActionLoading(true);
     try {
-      setNotice({ type: "info", msg: `Submitting appellate counter-evidence on-chain for ${bountyId}...` });
+      setNotice({ type: "info", msg: `Triggering on-chain Appellate Security Court consensus for ${bountyId}...` });
 
-      const txHash = await sendContractTx("adjudicate_appeal", [bountyId, appealUrl]);
+      const txHash = await sendContractTx("adjudicate_appeal", [bountyId]);
       setNotice({ type: "info", msg: `Appellate consensus tx submitted: ${txHash.slice(0, 10)}... Waiting for validators...` });
 
       await new Promise((resolve) => setTimeout(resolve, 4500));
@@ -452,30 +458,6 @@ export function App() {
       setNotice({ type: "error", msg: err?.message || "Failed to submit appeal on-chain." });
     } finally {
       setIsActionLoading(false);
-    }
-  };
-
-  // Action: Admin Emergency Arbitration (Real On-Chain)
-  const handleAdminArbitrate = async (bountyId: string, verdict: string) => {
-    setActiveActionBountyId(bountyId);
-    setIsActionLoading(true);
-    try {
-      setNotice({ type: "info", msg: `Executing Platform Admin arbitration on-chain for ${bountyId}...` });
-
-      const txHash = await sendContractTx("resolve_admin_arbitration", [bountyId, verdict]);
-      setNotice({ type: "info", msg: `Admin arbitration tx submitted: ${txHash.slice(0, 10)}... Finalizing...` });
-
-      await new Promise((resolve) => setTimeout(resolve, 3500));
-      await refreshOnChainData();
-      if (account) await fetchBalance(account);
-
-      setNotice({ type: "success", msg: `Admin arbitration resolved as ${verdict}! Tx: ${txHash.slice(0, 10)}...` });
-    } catch (err: any) {
-      console.error("Admin arbitrate error:", err);
-      setNotice({ type: "error", msg: err?.message || "Failed to arbitrate on-chain." });
-    } finally {
-      setIsActionLoading(false);
-      setActiveActionBountyId(null);
     }
   };
 
@@ -709,13 +691,11 @@ export function App() {
                   key={bounty.bounty_id}
                   bounty={bounty}
                   account={account}
-                  isAdmin={isAdmin}
                   onOpenSubmit={(b) => setSelectedBountyForSubmit(b)}
                   onAdjudicate={handleAdjudicate}
                   onOpenDispute={(b) => setDisputeModalState({ isOpen: true, bounty: b, mode: "DISPUTE" })}
                   onFinalizeSettlement={handleFinalizeSettlement}
                   onOpenAppeal={(b) => setDisputeModalState({ isOpen: true, bounty: b, mode: "APPEAL" })}
-                  onAdminArbitrate={handleAdminArbitrate}
                   onReclaim={handleReclaim}
                   onInspect={(b) => setSelectedBountyForInspect(b)}
                   isActionLoading={isActionLoading}

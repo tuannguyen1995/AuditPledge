@@ -5,13 +5,11 @@ import { AuditBountyData, formatGEN, shortenAddress, getStatusBadge, getVerdictD
 interface BountyCardProps {
   bounty: AuditBountyData;
   account: string | null;
-  isAdmin: boolean;
   onOpenSubmit: (bounty: AuditBountyData) => void;
   onAdjudicate: (bountyId: string) => Promise<void>;
   onOpenDispute: (bounty: AuditBountyData) => void;
   onFinalizeSettlement: (bountyId: string) => Promise<void>;
   onOpenAppeal: (bounty: AuditBountyData) => void;
-  onAdminArbitrate: (bountyId: string, verdict: string) => Promise<void>;
   onReclaim: (bountyId: string) => Promise<void>;
   onInspect: (bounty: AuditBountyData) => void;
   isActionLoading: boolean;
@@ -21,13 +19,11 @@ interface BountyCardProps {
 export const BountyCard: React.FC<BountyCardProps> = ({
   bounty,
   account,
-  isAdmin,
   onOpenSubmit,
   onAdjudicate,
   onOpenDispute,
   onFinalizeSettlement,
   onOpenAppeal,
-  onAdminArbitrate,
   onReclaim,
   onInspect,
   isActionLoading,
@@ -84,21 +80,43 @@ export const BountyCard: React.FC<BountyCardProps> = ({
         </div>
       </div>
 
-      {/* Target Repo & Invariants */}
+      {/* Target Repo & Pinned Code Revision */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-mono font-bold text-cyber-muted uppercase tracking-wider text-[11px]">
-            Target Repository:
-          </span>
-          <a
-            href={bounty.target_repo_url}
-            target="_blank"
-            rel="noreferrer"
-            className="font-mono text-neon-cyan hover:underline flex items-center space-x-1 truncate max-w-xs"
-          >
-            <span className="truncate">{bounty.target_repo_url}</span>
-            <ExternalLink className="w-3 h-3 flex-shrink-0" />
-          </a>
+        <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
+          <div className="flex items-center space-x-1.5">
+            <span className="font-mono font-bold text-cyber-muted uppercase tracking-wider text-[11px]">
+              Repo:
+            </span>
+            <a
+              href={bounty.target_repo_url}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-neon-cyan hover:underline flex items-center space-x-1 truncate max-w-[180px]"
+            >
+              <span className="truncate">{bounty.target_repo_url.replace("https://github.com/", "")}</span>
+              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+            </a>
+          </div>
+
+          {bounty.commit_hash && (
+            <div className="flex items-center space-x-1 font-mono text-[11px]">
+              <span className="text-cyber-muted">Revision:</span>
+              <span className="px-1.5 py-0.5 rounded bg-cyber-surface border border-cyber-border text-neon-emerald font-bold">
+                {bounty.commit_hash.slice(0, 7)}
+              </span>
+              {bounty.code_url && (
+                <a
+                  href={bounty.code_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-cyber-muted hover:text-white"
+                  title="View pinned source code"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="bg-cyber-surface/70 p-3 rounded border border-cyber-border text-xs">
@@ -358,35 +376,16 @@ export const BountyCard: React.FC<BountyCardProps> = ({
             </>
           )}
 
-          {/* Status 4: DISPUTED -> Appellate counter-evidence or Admin resolution */}
+          {/* Status 4: DISPUTED -> On-Chain Appellate Security Court */}
           {bounty.status === 4 && (
-            <>
-              <button
-                onClick={() => onOpenAppeal(bounty)}
-                disabled={isProcessing}
-                className="px-3.5 py-1.5 bg-neon-crimson hover:bg-neon-crimson/90 text-white rounded font-mono text-xs font-bold transition-colors flex items-center space-x-1 shadow-md"
-              >
-                <Scale className="w-3 h-3" />
-                <span>Submit Appellate Proof</span>
-              </button>
-
-              {isAdmin && (
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={() => onAdminArbitrate(bounty.bounty_id, "AUDIT_PASSED")}
-                    className="px-2 py-1 bg-neon-emerald/20 text-neon-emerald text-[10px] font-bold rounded border border-neon-emerald/40"
-                  >
-                    Admin: Approve
-                  </button>
-                  <button
-                    onClick={() => onAdminArbitrate(bounty.bounty_id, "AUDIT_REJECTED")}
-                    className="px-2 py-1 bg-neon-crimson/20 text-neon-crimson text-[10px] font-bold rounded border border-neon-crimson/40"
-                  >
-                    Admin: Reject
-                  </button>
-                </div>
-              )}
-            </>
+            <button
+              onClick={() => onOpenAppeal(bounty)}
+              disabled={isProcessing}
+              className="px-3.5 py-1.5 bg-neon-crimson hover:bg-neon-crimson/90 text-white rounded font-mono text-xs font-bold transition-colors flex items-center space-x-1 shadow-md"
+            >
+              <Scale className="w-3 h-3" />
+              <span>Trigger Appellate Security Court</span>
+            </button>
           )}
 
           {/* Status 5 & 6: Settled -> Inspect Dossier */}

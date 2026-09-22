@@ -11,7 +11,7 @@ interface NavbarProps {
   onDisconnect?: () => void;
   contractAddress: string;
   onUpdateContractAddress: (addr: string) => void;
-  userRole: "PROJECT OWNER" | "SECURITY AUDITOR" | "PLATFORM ADMIN" | "GUEST";
+  userRole: "PROJECT OWNER" | "SECURITY AUDITOR" | "GUEST";
 }
 
 export const Navbar: React.FC<NavbarProps> = ({

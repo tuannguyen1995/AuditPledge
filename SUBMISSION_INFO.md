@@ -39,5 +39,10 @@ Traditional bug bounties suffer from subjective dispute deadlocks, unpaid whiteh
 ### 4. Links & Deployment Details (If requested in subsequent steps)
 - **Live dApp**: https://auditpledge.vercel.app
 - **GitHub**: https://github.com/tuannguyen1995/AuditPledge
-- **Contract Address (StudioNet)**: `0x76B754983A19860d11d85999d5A1e3e33763e03e`
+- **Contract Address (StudioNet)**: `0x719fa63855f8f88640f81802057b35e689d927c0`
 - **Network**: GenLayer StudioNet (Chain ID: 61999)
+- **Architecture Highlights (Remediated v2)**:
+  1. Immutable Code Revision Binding (`commit_hash` >= 7 chars & `code_url`).
+  2. Live Source Code Injected into Validator Prompts across both adjudication paths (`adjudicate_audit` & `adjudicate_appeal`).
+  3. 100% Protocol Autonomy: Zero admin override backdoors (`resolve_admin_arbitration` removed).
+  4. Restricted Appeal & Settlement: Appeal evidence bound strictly to appellant staking 10% bond; settlement restricted to intended parties (`project_owner` / `auditor`).
