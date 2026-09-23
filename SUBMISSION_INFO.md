@@ -39,7 +39,7 @@ Traditional bug bounties suffer from subjective dispute deadlocks, unpaid whiteh
 ### 4. Links & Deployment Details (If requested in subsequent steps)
 - **Live dApp**: https://auditpledge.vercel.app
 - **GitHub**: https://github.com/tuannguyen1995/AuditPledge
-- **Contract Address (StudioNet - Production v2.1)**: `0xa7970e8822C94D5ACb29e80Fd557AB3321F1f05B`
+- **Contract Address (StudioNet - Production v2.1)**: `0xeA0Ffb98cF5d41ba86f2C6758040cd0D8Dd7d71C`
 - **Network**: GenLayer StudioNet (Chain ID: 61999)
 - **Architecture Highlights (Remediated v2)**:
   1. Immutable Code Revision Binding (`commit_hash` >= 7 chars & `code_url`).
