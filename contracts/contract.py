@@ -702,23 +702,23 @@ Respond ONLY with valid JSON:
             # Forfeit dispute bond to counter-party
             counter_party = b.project_owner if initiator == b.auditor else b.auditor
             if bond_val > bigint(0):
-                gl.get_contract_at(counter_party).emit_transfer(value=u256(bond_val))
+                gl.get_contract_at(counter_party).emit_transfer(value=bond_val)
 
             # Re-execute prior provisional verdict
             if b.verdict == "AUDIT_PASSED":
                 b.status = u8(5)
-                gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val))
+                gl.get_contract_at(b.auditor).emit_transfer(value=escrow_val)
             elif b.verdict == "PARTIAL_APPROVAL":
                 b.status = u8(5)
                 payout = (escrow_val * bigint(40)) // bigint(100)
                 refund = escrow_val - payout
                 if payout > bigint(0):
-                    gl.get_contract_at(b.auditor).emit_transfer(value=u256(payout))
+                    gl.get_contract_at(b.auditor).emit_transfer(value=payout)
                 if refund > bigint(0):
-                    gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund))
+                    gl.get_contract_at(b.project_owner).emit_transfer(value=refund)
             else:
                 b.status = u8(6)
-                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
+                gl.get_contract_at(b.project_owner).emit_transfer(value=escrow_val)
             return
 
         # ── Case B: Recoverable ESCALATE in Appeal Court ──
@@ -727,11 +727,11 @@ Respond ONLY with valid JSON:
             b.verdict = "ESCALATE"
             b.reason = f"[APPELLATE COURT ESCALATED - SAFE REFUND]: {appeal_res['reason']}"
             # Safe recovery invariant: Escrow refunded 100% to project owner
-            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
+            gl.get_contract_at(b.project_owner).emit_transfer(value=escrow_val)
             # Staked dispute bond returned to whoever staked it
             if bond_val > bigint(0):
                 target_refund = initiator if _addr_str(initiator) != ZERO_ADDRESS else b.project_owner
-                gl.get_contract_at(target_refund).emit_transfer(value=u256(bond_val))
+                gl.get_contract_at(target_refund).emit_transfer(value=bond_val)
             return
 
         # ── Case C: Standard Appellate Verdict Resolution ──
@@ -740,27 +740,27 @@ Respond ONLY with valid JSON:
 
         if final_verdict == "AUDIT_PASSED":
             b.status = u8(5)  # AUDIT_APPROVED
-            gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val))
+            gl.get_contract_at(b.auditor).emit_transfer(value=escrow_val)
             if bond_val > bigint(0):
-                gl.get_contract_at(b.auditor).emit_transfer(value=u256(bond_val))
+                gl.get_contract_at(b.auditor).emit_transfer(value=bond_val)
 
         elif final_verdict == "PARTIAL_APPROVAL":
             b.status = u8(5)  # AUDIT_APPROVED (partial)
             payout = (escrow_val * bigint(40)) // bigint(100)
             refund = escrow_val - payout
             if payout > bigint(0):
-                gl.get_contract_at(b.auditor).emit_transfer(value=u256(payout))
+                gl.get_contract_at(b.auditor).emit_transfer(value=payout)
             if refund > bigint(0):
-                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund))
+                gl.get_contract_at(b.project_owner).emit_transfer(value=refund)
             if bond_val > bigint(0):
                 target_refund = initiator if _addr_str(initiator) != ZERO_ADDRESS else b.project_owner
-                gl.get_contract_at(target_refund).emit_transfer(value=u256(bond_val))
+                gl.get_contract_at(target_refund).emit_transfer(value=bond_val)
 
         else:
             b.status = u8(6)  # AUDIT_REJECTED
-            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
+            gl.get_contract_at(b.project_owner).emit_transfer(value=escrow_val)
             if bond_val > bigint(0):
-                gl.get_contract_at(b.project_owner).emit_transfer(value=u256(bond_val))
+                gl.get_contract_at(b.project_owner).emit_transfer(value=bond_val)
 
     @gl.public.write
     def finalize_settlement(self, bounty_id: str) -> None:
@@ -790,17 +790,17 @@ Respond ONLY with valid JSON:
         if b.status == u8(2):
             b.status = u8(5)  # AUDIT_APPROVED
             if b.verdict == "AUDIT_PASSED":
-                gl.get_contract_at(b.auditor).emit_transfer(value=u256(escrow_val))
+                gl.get_contract_at(b.auditor).emit_transfer(value=escrow_val)
             elif b.verdict == "PARTIAL_APPROVAL":
                 payout_auditor = (escrow_val * bigint(40)) // bigint(100)
                 refund_owner = escrow_val - payout_auditor
                 if payout_auditor > bigint(0):
-                    gl.get_contract_at(b.auditor).emit_transfer(value=u256(payout_auditor))
+                    gl.get_contract_at(b.auditor).emit_transfer(value=payout_auditor)
                 if refund_owner > bigint(0):
-                    gl.get_contract_at(b.project_owner).emit_transfer(value=u256(refund_owner))
+                    gl.get_contract_at(b.project_owner).emit_transfer(value=refund_owner)
         elif b.status == u8(3):
             b.status = u8(6)  # AUDIT_REJECTED
-            gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
+            gl.get_contract_at(b.project_owner).emit_transfer(value=escrow_val)
 
     @gl.public.write
     def cancel_or_reclaim(self, bounty_id: str) -> None:
@@ -840,7 +840,7 @@ Respond ONLY with valid JSON:
             initiator = b.dispute_initiator
             b.dispute_bond = bigint(0)
             if bond_val > bigint(0) and _addr_str(initiator) != ZERO_ADDRESS:
-                gl.get_contract_at(initiator).emit_transfer(value=u256(bond_val))
+                gl.get_contract_at(initiator).emit_transfer(value=bond_val)
 
         else:
             raise UserError("Bounty cannot be reclaimed in its current status.")
@@ -853,7 +853,7 @@ Respond ONLY with valid JSON:
         self.total_escrow_locked = self.total_escrow_locked - escrow_val
         self.total_audits_resolved = self.total_audits_resolved + u32(1)
 
-        gl.get_contract_at(b.project_owner).emit_transfer(value=u256(escrow_val))
+        gl.get_contract_at(b.project_owner).emit_transfer(value=escrow_val)
 
     # ── Read-only Views ──────────────────────────────────────
 

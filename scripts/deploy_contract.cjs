@@ -38,8 +38,8 @@ async function main() {
         console.log(`[Polling ${i + 1}/60] Status: ${status}`);
         if (status === "ACCEPTED" || status === "FINALIZED" || status === "READY_TO_FINALIZE") {
           console.log("Deployment confirmed!");
-          console.log("Transaction full object:", JSON.stringify(tx, null, 2));
-          return;
+          console.log(">>> DEPLOYED CONTRACT ADDRESS:", tx.to_address || tx.created_contract_address);
+          return tx.to_address || tx.created_contract_address;
         }
         if (status === "CANCELED" || status === "VALIDATORS_TIMEOUT" || status === "UNDETERMINED") {
           console.error("Deployment failed with status:", status);
