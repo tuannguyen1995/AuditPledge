@@ -16,7 +16,7 @@ export const STUDIONET_CONFIG = {
 };
 
 // Default deployed contract address on studionet
-export const DEFAULT_CONTRACT_ADDRESS = "0xa7970e8822C94D5ACb29e80Fd557AB3321F1f05B";
+export const DEFAULT_CONTRACT_ADDRESS = "0xED217aAf1858c13F827aC58a83C7001d293FA8f9";
 
 export const genlayerClient = createClient({
   chain: studionet,
