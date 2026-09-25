@@ -64,8 +64,10 @@ def _sanitize_text(text: str) -> str:
 
 def _validate_source_binding(target_repo_url: str, commit_hash: str, code_url: str) -> None:
     """
-    Enforces strict cryptographic binding between the declared repository,
+    Enforces strict structural binding between the declared repository,
     immutable commit hash, and the fetched source code URL.
+    Parses URL path segments to verify owner, repo, and commit are at
+    the correct structural positions — not just substring matches.
     """
     clean_repo = str(target_repo_url).strip().lower()
     clean_commit = str(commit_hash).strip().lower()
@@ -74,11 +76,7 @@ def _validate_source_binding(target_repo_url: str, commit_hash: str, code_url: s
     if len(clean_commit) < 7:
         raise UserError("Commit hash must be at least 7 characters.")
 
-    # 1. Commit hash MUST be present in code_url
-    if clean_commit not in clean_code:
-        raise UserError(f"Security invariant: code_url must be bound to immutable commit hash '{clean_commit}'.")
-
-    # 2. Extract repository identifier from target_repo_url (e.g. github.com/owner/repo)
+    # ── Extract repo owner/name from target_repo_url ──
     repo_path = clean_repo
     for prefix in ("https://", "http://", "git@", "ssh://"):
         if repo_path.startswith(prefix):
@@ -88,22 +86,58 @@ def _validate_source_binding(target_repo_url: str, commit_hash: str, code_url: s
     if repo_path.endswith(".git"):
         repo_path = repo_path[:-4]
 
-    parts = repo_path.split("/")
-    if len(parts) >= 3:
-        repo_slug = f"{parts[1]}/{parts[2]}"
-    elif len(parts) == 2:
-        repo_slug = f"{parts[0]}/{parts[1]}"
+    repo_parts = repo_path.split("/")
+    # github.com/owner/repo → parts = ["github.com", "owner", "repo"]
+    if len(repo_parts) >= 3:
+        repo_owner = repo_parts[1]
+        repo_name = repo_parts[2]
+    elif len(repo_parts) == 2:
+        repo_owner = repo_parts[0]
+        repo_name = repo_parts[1]
     else:
-        repo_slug = parts[-1]
+        raise UserError("Cannot parse repository owner/name from target_repo_url.")
 
-    # 3. Repository slug must be in code_url
-    if repo_slug and repo_slug not in clean_code:
-        raise UserError(f"Security invariant: code_url must point to declared repository '{repo_slug}'.")
+    # ── Structurally parse code_url path segments ──
+    code_path = clean_code
+    for prefix in ("https://", "http://"):
+        if code_path.startswith(prefix):
+            code_path = code_path[len(prefix):]
+            break
 
-    # 4. Enforce raw immutable content URL
-    if "github.com" in clean_repo or "github.com" in clean_code or "raw.githubusercontent.com" in clean_code:
-        if not ("raw.githubusercontent.com" in clean_code or "/raw/" in clean_code):
-            raise UserError("GitHub target source code URL must point to raw immutable content.")
+    # Remove query string and fragment before splitting
+    if "?" in code_path:
+        code_path = code_path[:code_path.index("?")]
+    if "#" in code_path:
+        code_path = code_path[:code_path.index("#")]
+
+    code_segments = code_path.split("/")
+
+    if "raw.githubusercontent.com" in clean_code:
+        # Format: raw.githubusercontent.com / owner / repo / commit / path...
+        if len(code_segments) < 4:
+            raise UserError("Invalid raw.githubusercontent.com URL structure: insufficient path segments.")
+        url_host = code_segments[0]
+        url_owner = code_segments[1]
+        url_repo = code_segments[2]
+        url_commit = code_segments[3]
+    elif "github.com" in clean_code and "/raw/" in clean_code:
+        # Format: github.com / owner / repo / raw / commit / path...
+        if len(code_segments) < 5:
+            raise UserError("Invalid github.com/raw/ URL structure: insufficient path segments.")
+        url_owner = code_segments[1]
+        url_repo = code_segments[2]
+        # code_segments[3] == "raw"
+        url_commit = code_segments[4]
+    else:
+        raise UserError("code_url must use raw.githubusercontent.com or github.com/raw/ for immutable content.")
+
+    # ── Enforce structural component match ──
+    if url_owner != repo_owner:
+        raise UserError(f"URL owner '{url_owner}' does not match declared repo owner '{repo_owner}'.")
+    if url_repo != repo_name:
+        raise UserError(f"URL repo '{url_repo}' does not match declared repo name '{repo_name}'.")
+    if not url_commit.startswith(clean_commit) and not clean_commit.startswith(url_commit):
+        raise UserError(f"URL commit '{url_commit}' does not match declared commit hash '{clean_commit}'.")
 
 
 @allow_storage
@@ -544,19 +578,42 @@ Respond ONLY with valid JSON:
         def leader_fn():
             # 1. Fetch the exact target source code at commit revision
             raw_source = ""
+            source_fetch_err = False
             try:
                 raw_source = gl.nondet.web.render(code_url, mode="text")
             except Exception:
-                pass
-            clean_source = _sanitize_text(raw_source) if raw_source else "[SOURCE UNAVAILABLE]"
+                source_fetch_err = True
+
+            # DETERMINISTIC: Source unavailable → cannot verify → safe recovery
+            if source_fetch_err or not raw_source or any(err in raw_source[:400].lower() for err in ["404 not found", "repository not found"]):
+                return {
+                    "canary": CANARY_TOKEN,
+                    "verdict": "ESCALATE",
+                    "confidence": 100,
+                    "depth_score": 0,
+                    "reason": "UNAVAILABLE_EVIDENCE: Target source at committed revision inaccessible during appeal. Safe recovery triggered."
+                }
 
             # 2. Fetch original report
             raw_report = ""
+            report_fetch_err = False
             try:
                 raw_report = gl.nondet.web.render(report_url, mode="text")
             except Exception:
-                pass
-            clean_report = _sanitize_text(raw_report) if raw_report else "[ORIGINAL REPORT UNAVAILABLE]"
+                report_fetch_err = True
+
+            # DETERMINISTIC: Report unavailable → cannot cross-examine → safe recovery
+            if report_fetch_err or not raw_report or len(raw_report.strip()) == 0 or any(err in raw_report[:400].lower() for err in ["404 not found", "not found"]):
+                return {
+                    "canary": CANARY_TOKEN,
+                    "verdict": "ESCALATE",
+                    "confidence": 100,
+                    "depth_score": 0,
+                    "reason": "UNAVAILABLE_EVIDENCE: Original audit report inaccessible during appeal. Safe recovery triggered."
+                }
+
+            clean_source = _sanitize_text(raw_source)
+            clean_report = _sanitize_text(raw_report)
 
             # 3. Fetch appellant counter-evidence
             raw_appeal = ""

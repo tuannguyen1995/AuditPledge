@@ -36,14 +36,14 @@ class TestAuditPledgeDirectContractExecution:
         direct_vm.deal(owner, 10_000_000_000_000_000_000)
         direct_vm.value = 1_000_000_000_000_000_000
 
-        # Mismatched commit hash in code URL
+        # Mismatched commit hash in code URL (structural: commit at path segment position)
         bad_code_url_commit = f"https://raw.githubusercontent.com/tuannguyenvan95/vulnerability-zero-genlayer/1111111111111111111111111111111111111111/contracts/VulnerabilityZero.py"
-        with direct_vm.expect_revert("Security invariant: code_url must be bound to immutable commit hash"):
+        with direct_vm.expect_revert("URL commit"):
             contract.create_audit_bounty(REPO_URL, COMMIT_HASH, bad_code_url_commit, SCOPE, 6000)
 
-        # Mismatched repository slug in code URL
+        # Mismatched repository owner/name in code URL (structural: owner/repo at path segment positions)
         bad_code_url_repo = f"https://raw.githubusercontent.com/attacker/fake-repo/{COMMIT_HASH}/contracts/VulnerabilityZero.py"
-        with direct_vm.expect_revert("Security invariant: code_url must point to declared repository"):
+        with direct_vm.expect_revert("URL owner"):
             contract.create_audit_bounty(REPO_URL, COMMIT_HASH, bad_code_url_repo, SCOPE, 6000)
 
         # Properly bound code URL succeeds

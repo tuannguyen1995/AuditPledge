@@ -2,7 +2,7 @@ const path = require("path");
 const { createClient, createAccount, chains } = require(path.join(__dirname, "../frontend/node_modules/genlayer-js"));
 const { studionet } = chains;
 
-const CONTRACT_ADDRESS = "0xeA0Ffb98cF5d41ba86f2C6758040cd0D8Dd7d71C";
+const CONTRACT_ADDRESS = "0xF14AD1F4fD9DfC623DF962892ab0234C4aB4cfAC";
 const AUDITOR_PRIVATE_KEY = "0x1b807b1df022a40f872596b11565e6b6856547dc66996bd3d5a85b376ea3a0ef";
 const SPONSOR_PRIVATE_KEY = "0x6c324b6dc21da6dbe57fc460416396c1bb3c4ff14454801cf7fe1eb74d28d277";
 
