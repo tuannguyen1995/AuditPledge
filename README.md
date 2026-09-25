@@ -10,7 +10,7 @@
 > **GitHub Repository**: [https://github.com/tuannguyen1995/AuditPledge](https://github.com/tuannguyen1995/AuditPledge)  
 > **Track**: Agentic Economy Infrastructure / Subjective Consensus / Security  
 > **Target Network**: GenLayer `studionet` (Chain ID: `61999` / `0xF1EF`, RPC: `https://studio.genlayer.com/api`)  
-> **Deployed Contract Address (Production v2.1)**: `0xb839b5c0f98f6Cf8B56049C7890265703aA77528`  
+> **Deployed Contract Address (Production v2.1)**: `0xc1B9502A59d37118F8E87e7df00eBab4640b6b7C`  
 
 ---
 
@@ -123,7 +123,7 @@ To satisfy all requirements from the GenLayer protocol steward review, AuditPled
 | **4. Restrict Appeal Evidence & Settlement Authority** | `raise_dispute` requires a 10% bond and binds `b.appeal_url` strictly to the appellant; `finalize_settlement` and appeal trigger are restricted strictly to intended parties (`project_owner` / `auditor`). | Verified: Tx `0xe484393e...` locked 0.1 GEN bond & recorded appeal evidence. Settlement executed autonomously without admin intervention. |
 
 ### Verified On-Chain Transactions (GenLayer StudioNet - Chain ID: 61999):
-- **Intelligent Contract (Production v2.1)**: [`0xb839b5c0f98f6Cf8B56049C7890265703aA77528`](https://studio.genlayer.com)
+- **Intelligent Contract (Production v2.1)**: [`0xc1B9502A59d37118F8E87e7df00eBab4640b6b7C`](https://studio.genlayer.com)
 - **Intelligent Contract (Trial Test Suite v2)**: [`0x719fa63855f8f88640f81802057b35e689d927c0`](https://studio.genlayer.com)
   - **Tx 1 (Create Bounty - 1.0 GEN Escrow)**: `0xbf0e101787bb01ab83343882259f260a55979f504bacf19e59aa81c6ae331420`
   - **Tx 2 (Submit Vulnerability Report)**: `0x59ce7b13312ae11b62eccb6407e060d2c3de46cca11c33c209b3e2f2131cf036`
