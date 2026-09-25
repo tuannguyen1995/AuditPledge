@@ -70,7 +70,7 @@ def test_source_binding_rejects_non_raw_url(direct_vm, direct_deploy):
     direct_vm.deal(direct_vm.sender, 10_000_000_000_000_000_000)
     direct_vm.value = 1_000_000_000_000_000_000
 
-    with direct_vm.expect_revert("code_url must use raw.githubusercontent.com"):
+    with direct_vm.expect_revert("code_url host must be strictly 'raw.githubusercontent.com'"):
         contract.create_audit_bounty(repo, commit, invalid_url, "Scope specification at least 10 chars", 7200)
 
 
@@ -187,20 +187,26 @@ def test_appellate_unavailable_source_triggers_safe_recovery(direct_vm, direct_d
     contract.adjudicate_appeal(b_id)
 
     bounty = json.loads(contract.get_bounty(b_id))
-    assert bounty["status"] == 7  # RESOLVED_ESCALATED (safe recovery)
+    # Invariant: Must retain status 4 (DISPUTED/ESCALATED) with locked escrow. No premature settlement!
+    assert bounty["status"] == 4
     assert bounty["verdict"] == "ESCALATE"
     assert "UNAVAILABLE_EVIDENCE" in bounty["reason"]
-    assert "SAFE REFUND" in bounty["reason"]
-
     stats = json.loads(contract.get_stats())
-    assert stats["total_escrow_locked"] == "0"
+    assert stats["total_escrow_locked"] == "1000000000000000000"
+
+    # Safe recovery via cancel_or_reclaim after timeout
+    direct_vm.warp("2026-09-25T10:20:00Z")
+    contract.cancel_or_reclaim(b_id)
+    bounty_recovered = json.loads(contract.get_bounty(b_id))
+    assert bounty_recovered["status"] == 7  # RECLAIMED
+    assert json.loads(contract.get_stats())["total_escrow_locked"] == "0"
 
 
 def test_appellate_unavailable_report_triggers_safe_recovery(direct_vm, direct_deploy):
     """
     Invariant: When original audit report is unavailable (404) during appellate adjudication,
     the contract MUST NOT substitute a placeholder and send it to the LLM.
-    Instead it MUST return deterministic ESCALATE → safe recovery.
+    Instead it MUST return deterministic ESCALATE, retain status 4, and recover only via timeout.
     """
     owner = create_address("project_owner")
     auditor = create_address("whitehat_auditor")
@@ -248,12 +254,37 @@ def test_appellate_unavailable_report_triggers_safe_recovery(direct_vm, direct_d
     contract.adjudicate_appeal(b_id)
 
     bounty = json.loads(contract.get_bounty(b_id))
-    assert bounty["status"] == 7  # RESOLVED_ESCALATED
+    assert bounty["status"] == 4  # Retained in DISPUTED/ESCALATED
     assert bounty["verdict"] == "ESCALATE"
     assert "UNAVAILABLE_EVIDENCE" in bounty["reason"]
+    assert json.loads(contract.get_stats())["total_escrow_locked"] == "1000000000000000000"
 
-    stats = json.loads(contract.get_stats())
-    assert stats["total_escrow_locked"] == "0"
+    # Safe recovery via cancel_or_reclaim after timeout
+    direct_vm.warp("2026-09-25T11:20:00Z")
+    contract.cancel_or_reclaim(b_id)
+    bounty_recovered = json.loads(contract.get_bounty(b_id))
+    assert bounty_recovered["status"] == 7  # RECLAIMED
+    assert json.loads(contract.get_stats())["total_escrow_locked"] == "0"
+
+
+def test_source_binding_rejects_substring_and_mismatches(direct_vm, direct_deploy):
+    """
+    Structural invariant: Rejects attempts to smuggle raw.githubusercontent.com into another domain
+    or use prefix commits instead of exact match.
+    """
+    contract = direct_deploy("contracts/contract.py")
+    direct_vm.deal(direct_vm.sender, 10_000_000_000_000_000_000)
+    direct_vm.value = 1_000_000_000_000_000_000
+
+    # 1. Smuggled host (evil.com with raw.githubusercontent.com in path)
+    evil_url = "https://evil.com/raw.githubusercontent.com/alice/project/a1b2c3d4e5f6/main.py"
+    with direct_vm.expect_revert("code_url host must be strictly 'raw.githubusercontent.com'"):
+        contract.create_audit_bounty("https://github.com/alice/project", "a1b2c3d4e5f6", evil_url, "Scope spec at least 10 chars", 86400)
+
+    # 2. Prefix commit instead of exact match
+    prefix_commit_url = "https://raw.githubusercontent.com/alice/project/a1b2c3d/main.py"
+    with direct_vm.expect_revert("does not exactly match declared commit hash"):
+        contract.create_audit_bounty("https://github.com/alice/project", "a1b2c3d4e5f6", prefix_commit_url, "Scope spec at least 10 chars", 86400)
 
 
 def test_emit_transfer_raw_bigint_execution(direct_vm, direct_deploy):

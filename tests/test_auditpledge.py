@@ -277,13 +277,23 @@ class TestAuditPledgeDirectContractExecution:
         direct_vm.value = 0
         contract.adjudicate_appeal(b_id)
 
+        # Invariant: Contract does NOT prematurely disburse/settle on ESCALATE.
+        # It retains status 4 (DISPUTED) with locked escrow, preventing 404-griefing attacks.
         bounty_escalated = json.loads(contract.get_bounty(b_id))
-        assert bounty_escalated["status"] == 7  # RESOLVED_ESCALATED / CANCELLED
+        assert bounty_escalated["status"] == 4  # Retained in DISPUTED / ESCALATED
         assert bounty_escalated["verdict"] == "ESCALATE"
-        assert "SAFE REFUND" in bounty_escalated["reason"]
-        # Zero funds locked in contract
         stats = json.loads(contract.get_stats())
-        assert stats["total_escrow_locked"] == "0"
+        assert stats["total_escrow_locked"] == "1000000000000000000"
+
+        # Safe recovery via cancel_or_reclaim after dispute timeout (600s)
+        direct_vm.warp("2026-09-23T14:15:00Z")  # 15 mins later
+        contract.cancel_or_reclaim(b_id)
+
+        bounty_recovered = json.loads(contract.get_bounty(b_id))
+        assert bounty_recovered["status"] == 7  # RECLAIMED
+        assert bounty_recovered["verdict"] == "RECLAIMED"
+        stats_final = json.loads(contract.get_stats())
+        assert stats_final["total_escrow_locked"] == "0"
 
     def test_graduated_settlement_matrix_invariants(self, direct_vm, contract):
         """Invariant: Graduated settlement matrix correctly disburses 100% or 40% payouts."""

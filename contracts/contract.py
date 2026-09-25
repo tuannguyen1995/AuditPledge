@@ -64,80 +64,67 @@ def _sanitize_text(text: str) -> str:
 
 def _validate_source_binding(target_repo_url: str, commit_hash: str, code_url: str) -> None:
     """
-    Enforces strict structural binding between the declared repository,
-    immutable commit hash, and the fetched source code URL.
-    Parses URL path segments to verify owner, repo, and commit are at
-    the correct structural positions — not just substring matches.
+    Enforces strict structural URL component binding against declared repo and commit.
+    Strictly verifies host, owner, repo, and commit as exact path components (no substring/startswith).
     """
-    clean_repo = str(target_repo_url).strip().lower()
+    clean_repo = str(target_repo_url).strip()
     clean_commit = str(commit_hash).strip().lower()
-    clean_code = str(code_url).strip().lower()
+    clean_code = str(code_url).strip()
 
     if len(clean_commit) < 7:
         raise UserError("Commit hash must be at least 7 characters.")
 
-    # ── Extract repo owner/name from target_repo_url ──
-    repo_path = clean_repo
+    # 1. Parse declared repo URL
+    repo_raw = clean_repo
     for prefix in ("https://", "http://", "git@", "ssh://"):
-        if repo_path.startswith(prefix):
-            repo_path = repo_path[len(prefix):]
+        if repo_raw.startswith(prefix):
+            repo_raw = repo_raw[len(prefix):]
             break
-    repo_path = repo_path.rstrip("/")
-    if repo_path.endswith(".git"):
-        repo_path = repo_path[:-4]
+    repo_raw = repo_raw.rstrip("/")
+    if repo_raw.endswith(".git"):
+        repo_raw = repo_raw[:-4]
 
-    repo_parts = repo_path.split("/")
-    # github.com/owner/repo → parts = ["github.com", "owner", "repo"]
-    if len(repo_parts) >= 3:
-        repo_owner = repo_parts[1]
-        repo_name = repo_parts[2]
-    elif len(repo_parts) == 2:
-        repo_owner = repo_parts[0]
-        repo_name = repo_parts[1]
-    else:
-        raise UserError("Cannot parse repository owner/name from target_repo_url.")
+    repo_parts = [p.lower() for p in repo_raw.split("/") if p]
+    # Expected: ['github.com', 'owner', 'repo']
+    if len(repo_parts) < 3 or repo_parts[0] != "github.com":
+        raise UserError("target_repo_url must be a valid github.com repository URL.")
 
-    # ── Structurally parse code_url path segments ──
-    code_path = clean_code
+    declared_owner = repo_parts[1]
+    declared_repo = repo_parts[2]
+
+    # 2. Parse code_url path components
+    code_raw = clean_code
     for prefix in ("https://", "http://"):
-        if code_path.startswith(prefix):
-            code_path = code_path[len(prefix):]
+        if code_raw.startswith(prefix):
+            code_raw = code_raw[len(prefix):]
             break
 
-    # Remove query string and fragment before splitting
-    if "?" in code_path:
-        code_path = code_path[:code_path.index("?")]
-    if "#" in code_path:
-        code_path = code_path[:code_path.index("#")]
+    # Strip query & fragment
+    if "?" in code_raw:
+        code_raw = code_raw[:code_raw.index("?")]
+    if "#" in code_raw:
+        code_raw = code_raw[:code_raw.index("#")]
 
-    code_segments = code_path.split("/")
+    segments = [s for s in code_raw.split("/") if s]
+    # For raw.githubusercontent.com: ['raw.githubusercontent.com', 'owner', 'repo', 'commit', 'path...']
+    if len(segments) < 5:
+        raise UserError("code_url has insufficient path segments for an immutable raw file.")
 
-    if "raw.githubusercontent.com" in clean_code:
-        # Format: raw.githubusercontent.com / owner / repo / commit / path...
-        if len(code_segments) < 4:
-            raise UserError("Invalid raw.githubusercontent.com URL structure: insufficient path segments.")
-        url_host = code_segments[0]
-        url_owner = code_segments[1]
-        url_repo = code_segments[2]
-        url_commit = code_segments[3]
-    elif "github.com" in clean_code and "/raw/" in clean_code:
-        # Format: github.com / owner / repo / raw / commit / path...
-        if len(code_segments) < 5:
-            raise UserError("Invalid github.com/raw/ URL structure: insufficient path segments.")
-        url_owner = code_segments[1]
-        url_repo = code_segments[2]
-        # code_segments[3] == "raw"
-        url_commit = code_segments[4]
-    else:
-        raise UserError("code_url must use raw.githubusercontent.com or github.com/raw/ for immutable content.")
+    url_host = segments[0].lower()
+    if url_host != "raw.githubusercontent.com":
+        raise UserError("code_url host must be strictly 'raw.githubusercontent.com'.")
 
-    # ── Enforce structural component match ──
-    if url_owner != repo_owner:
-        raise UserError(f"URL owner '{url_owner}' does not match declared repo owner '{repo_owner}'.")
-    if url_repo != repo_name:
-        raise UserError(f"URL repo '{url_repo}' does not match declared repo name '{repo_name}'.")
-    if not url_commit.startswith(clean_commit) and not clean_commit.startswith(url_commit):
-        raise UserError(f"URL commit '{url_commit}' does not match declared commit hash '{clean_commit}'.")
+    url_owner = segments[1].lower()
+    url_repo = segments[2].lower()
+    url_commit = segments[3].lower()
+
+    # 3. Exact structural component equality (NO SUBSTRING / NO PREFIX MATCHING)
+    if url_owner != declared_owner:
+        raise UserError(f"URL owner '{url_owner}' does not match declared repo owner '{declared_owner}'.")
+    if url_repo != declared_repo:
+        raise UserError(f"URL repo '{url_repo}' does not match declared repo name '{declared_repo}'.")
+    if url_commit != clean_commit:
+        raise UserError(f"URL commit '{url_commit}' does not exactly match declared commit hash '{clean_commit}'.")
 
 
 @allow_storage
@@ -745,6 +732,21 @@ Respond ONLY with valid JSON:
         b.depth_score = u8(int(appeal_res["depth_score"]))
         b.disputed = False
 
+        # ── Case B: Missing Evidence or Deadlock -> ESCALATE without premature payout ──
+        if final_verdict == "ESCALATE":
+            b.status = u8(4)  # Retain DISPUTED / ESCALATED status
+            b.verdict = "ESCALATE"
+            b.reason = f"[EVIDENCE UNAVAILABLE - ESCALATED]: {appeal_res['reason']}"
+            current_time = _get_current_timestamp()
+            b.dispute_timeout_time = current_time + u256(DISPUTE_TIMEOUT_SECONDS)
+            # CRITICAL SECURITY INVARIANT:
+            # DO NOT settle or transfer funds immediately here!
+            # Preventing griefing: Project owner cannot force 404 to steal escrow back while auditor awaits payout.
+            # Both escrow and bond remain safely locked until dispute timeout expires,
+            # at which point cancel_or_reclaim() recovers funds safely.
+            return
+
+        b.disputed = False
         escrow_val = b.escrow_amount
         bond_val = b.dispute_bond
         initiator = b.dispute_initiator
@@ -776,19 +778,6 @@ Respond ONLY with valid JSON:
             else:
                 b.status = u8(6)
                 gl.get_contract_at(b.project_owner).emit_transfer(value=escrow_val)
-            return
-
-        # ── Case B: Recoverable ESCALATE in Appeal Court ──
-        if final_verdict == "ESCALATE":
-            b.status = u8(7)  # RESOLVED_ESCALATED
-            b.verdict = "ESCALATE"
-            b.reason = f"[APPELLATE COURT ESCALATED - SAFE REFUND]: {appeal_res['reason']}"
-            # Safe recovery invariant: Escrow refunded 100% to project owner
-            gl.get_contract_at(b.project_owner).emit_transfer(value=escrow_val)
-            # Staked dispute bond returned to whoever staked it
-            if bond_val > bigint(0):
-                target_refund = initiator if _addr_str(initiator) != ZERO_ADDRESS else b.project_owner
-                gl.get_contract_at(target_refund).emit_transfer(value=bond_val)
             return
 
         # ── Case C: Standard Appellate Verdict Resolution ──
