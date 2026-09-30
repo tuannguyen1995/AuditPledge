@@ -2,7 +2,7 @@ const path = require("path");
 const { createClient, createAccount, chains } = require(path.join(__dirname, "../frontend/node_modules/genlayer-js"));
 const { studionet } = chains;
 
-const CONTRACT_ADDRESS = "0xc1B9502A59d37118F8E87e7df00eBab4640b6b7C";
+const CONTRACT_ADDRESS = "0x1b5F64C607cD2ae4C3A6aAe685D749aBA537c2f1";
 const SPONSOR_PRIVATE_KEY = "0x6c324b6dc21da6dbe57fc460416396c1bb3c4ff14454801cf7fe1eb74d28d277";
 
 async function pollReceipt(client, hash) {
