@@ -349,3 +349,38 @@ def test_escalate_and_timeout_recovery_invariant():
     # After recovery / settle
     total_locked -= escrow_val
     assert total_locked == 0
+
+
+def test_github_raw_404_colon_format_detection(direct_vm, direct_deploy):
+    """
+    Critical Invariant: GitHub raw returns '404: Not Found' (with colon).
+    Verify that _is_unavailable_evidence strictly identifies this format
+    and triggers UNAVAILABLE_EVIDENCE rejection without proceeding to the LLM.
+    """
+    owner = create_address("project_owner")
+    auditor = create_address("whitehat_auditor")
+    direct_vm.sender = owner
+    direct_vm.deal(owner, 10_000_000_000_000_000_000)
+
+    contract = direct_deploy("contracts/contract.py")
+
+    direct_vm.warp("2026-09-25T12:00:00Z")
+    direct_vm.value = 1_000_000_000_000_000_000
+    b_id = contract.create_audit_bounty(REPO_URL, COMMIT_HASH, CODE_URL, SCOPE, 7200)
+
+    direct_vm.sender = auditor
+    direct_vm.value = 0
+    contract.submit_audit_report(b_id, REPORT_URL)
+
+    # Mock exact GitHub raw 404 response: "404: Not Found\n"
+    direct_vm.mock_web(".*VulnerabilityZero\\.py.*", MockedWebResponseData(status=404, body="404: Not Found\n"))
+    direct_vm.mock_web(".*audit-poc\\.md.*", MockedWebResponseData(status=200, body="PoC"))
+
+    # Does not require LLM mock because it returns deterministically
+    contract.adjudicate_audit(b_id)
+
+    bounty = json.loads(contract.get_bounty(b_id))
+    assert bounty["status"] == 3  # AWAITING_REFUND
+    assert bounty["verdict"] == "AUDIT_REJECTED"
+    assert "UNAVAILABLE_EVIDENCE" in bounty["reason"]
+

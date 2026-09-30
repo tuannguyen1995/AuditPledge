@@ -62,6 +62,33 @@ def _sanitize_text(text: str) -> str:
     return clean
 
 
+def _is_unavailable_evidence(content: str) -> bool:
+    """
+    Robust check for missing, 404, or inaccessible web evidence.
+    Detects GitHub raw errors ('404: Not Found'), HTTP error codes,
+    short error responses, and empty/whitespace bodies.
+    """
+    if not content or len(content.strip()) == 0:
+        return True
+    header = content[:500].lower()
+    if "404" in header and "not found" in header:
+        return True
+    if any(sig in header for sig in [
+        "404: not found",
+        "404 not found",
+        "repository not found",
+        "page not found",
+        "<title>404",
+        "error 404",
+        "403: forbidden",
+        "access denied"
+    ]):
+        return True
+    if len(content.strip()) < 120 and ("404" in header or "not found" in header):
+        return True
+    return False
+
+
 def _validate_source_binding(target_repo_url: str, commit_hash: str, code_url: str) -> None:
     """
     Enforces strict structural URL component binding against declared repo and commit.
@@ -318,7 +345,7 @@ class Contract(gl.Contract):
             except Exception:
                 source_fetch_err = True
 
-            if source_fetch_err or not raw_source or any(err in raw_source[:400].lower() for err in ["404 not found", "repository not found"]):
+            if source_fetch_err or _is_unavailable_evidence(raw_source):
                 return {
                     "canary": CANARY_TOKEN,
                     "verdict": "AUDIT_REJECTED",
@@ -335,7 +362,7 @@ class Contract(gl.Contract):
             except Exception:
                 report_fetch_err = True
 
-            if report_fetch_err or not raw_report or len(raw_report.strip()) == 0 or any(err in raw_report[:400].lower() for err in ["404 not found", "not found"]):
+            if report_fetch_err or _is_unavailable_evidence(raw_report):
                 return {
                     "canary": CANARY_TOKEN,
                     "verdict": "AUDIT_REJECTED",
@@ -572,7 +599,7 @@ Respond ONLY with valid JSON:
                 source_fetch_err = True
 
             # DETERMINISTIC: Source unavailable → cannot verify → safe recovery
-            if source_fetch_err or not raw_source or any(err in raw_source[:400].lower() for err in ["404 not found", "repository not found"]):
+            if source_fetch_err or _is_unavailable_evidence(raw_source):
                 return {
                     "canary": CANARY_TOKEN,
                     "verdict": "ESCALATE",
@@ -590,7 +617,7 @@ Respond ONLY with valid JSON:
                 report_fetch_err = True
 
             # DETERMINISTIC: Report unavailable → cannot cross-examine → safe recovery
-            if report_fetch_err or not raw_report or len(raw_report.strip()) == 0 or any(err in raw_report[:400].lower() for err in ["404 not found", "not found"]):
+            if report_fetch_err or _is_unavailable_evidence(raw_report):
                 return {
                     "canary": CANARY_TOKEN,
                     "verdict": "ESCALATE",
@@ -604,13 +631,14 @@ Respond ONLY with valid JSON:
 
             # 3. Fetch appellant counter-evidence
             raw_appeal = ""
+            appeal_fetch_err = False
             try:
                 raw_appeal = gl.nondet.web.render(appeal_url, mode="text")
             except Exception:
-                pass
+                appeal_fetch_err = True
 
             # Check unavailable appeal evidence:
-            if not raw_appeal or any(err in raw_appeal[:400].lower() for err in ["404 not found", "repository not found"]):
+            if appeal_fetch_err or _is_unavailable_evidence(raw_appeal):
                 return {
                     "canary": CANARY_TOKEN,
                     "verdict": "APPEAL_DISMISSED",
