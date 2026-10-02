@@ -59,8 +59,8 @@ export const AUDIT_PLEDGE_ABI = [
     type: "function",
     inputs: [
       { name: "bounty_id", type: "string" },
-      { name: "dispute_reason", type: "string" },
       { name: "appeal_evidence_url", type: "string" },
+      { name: "dispute_reason", type: "string" },
     ],
     outputs: [],
     stateMutability: "payable",

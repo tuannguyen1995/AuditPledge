@@ -394,12 +394,12 @@ export function App() {
   };
 
   // Action: Raise Dispute (Real On-Chain Symmetrical Dispute with 10% Anti-Griefing Bond & Appeal Evidence)
-  const handleRaiseDispute = async (bountyId: string, reason: string, appealUrl: string, bondWei: bigint = BigInt(0)) => {
+  const handleRaiseDispute = async (bountyId: string, appealUrl: string, reason: string, bondWei: bigint = BigInt(0)) => {
     setIsActionLoading(true);
     try {
       setNotice({ type: "info", msg: `Staking 10% dispute bond & submitting dispute challenge for ${bountyId} on-chain...` });
 
-      const txHash = await sendContractTx("raise_dispute", [bountyId, reason, appealUrl], bondWei);
+      const txHash = await sendContractTx("raise_dispute", [bountyId, appealUrl, reason], bondWei);
       setNotice({ type: "info", msg: `Dispute bond staked & challenge tx submitted: ${txHash.slice(0, 10)}... Moving to Appellate Court...` });
 
       await new Promise((resolve) => setTimeout(resolve, 3500));

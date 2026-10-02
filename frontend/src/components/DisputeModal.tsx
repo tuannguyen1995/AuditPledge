@@ -7,7 +7,7 @@ interface DisputeModalProps {
   onClose: () => void;
   bounty: AuditBountyData | null;
   mode: "DISPUTE" | "APPEAL";
-  onSubmitDispute: (bountyId: string, reason: string, appealUrl: string, bondWei: bigint) => Promise<void>;
+  onSubmitDispute: (bountyId: string, appealUrl: string, reason: string, bondWei: bigint) => Promise<void>;
   onSubmitAppeal: (bountyId: string) => Promise<void>;
   isSubmitting: boolean;
 }
@@ -49,7 +49,7 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({
         return;
       }
       try {
-        await onSubmitDispute(bounty.bounty_id, reason.trim(), appealUrl.trim(), minBondWei);
+        await onSubmitDispute(bounty.bounty_id, appealUrl.trim(), reason.trim(), minBondWei);
         onClose();
       } catch (err: any) {
         setError(err?.message || "Failed to raise dispute.");
