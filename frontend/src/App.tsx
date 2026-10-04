@@ -717,7 +717,7 @@ export function App() {
             <span>AuditPledge &copy; 2026 &bull; Autonomous Web3 Security Escrow & Appellate Court</span>
           </div>
           <div className="flex items-center space-x-4 text-[11px]">
-            <span>GenLayer StudioNet (Chain ID: 0xF1EF)</span>
+            <span>GenLayer StudioNet (Chain ID: 61999 / 0xF22F)</span>
             <span className="text-cyber-subtle">&bull;</span>
             <a
               href="https://studio.genlayer.com"

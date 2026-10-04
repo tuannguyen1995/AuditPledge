@@ -9,7 +9,7 @@
 > **Live dApp URL**: [https://auditpledge.vercel.app](https://auditpledge.vercel.app)  
 > **GitHub Repository**: [https://github.com/tuannguyen1995/AuditPledge](https://github.com/tuannguyen1995/AuditPledge)  
 > **Track**: Agentic Economy Infrastructure / Subjective Consensus / Security  
-> **Target Network**: GenLayer `studionet` (Chain ID: `61999` / `0xF1EF`, RPC: `https://studio.genlayer.com/api`)  
+> **Target Network**: GenLayer `studionet` (Chain ID: `61999` / `0xF22F`, RPC: `https://studio.genlayer.com/api`)  
 > **Deployed Contract Address (Production v2.1)**: `0x3A37f4ae95C8f19beB1127c78f2968bBe89498c0`  
 
 ---
