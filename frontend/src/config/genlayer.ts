@@ -2,9 +2,12 @@ import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 
 // GenLayer studionet configuration
+export const STUDIONET_CHAIN_ID_DEC = 61999;
+export const STUDIONET_CHAIN_ID_HEX = "0xF22F";
+
 export const STUDIONET_CONFIG = {
-  chainId: 61999,
-  chainIdHex: "0xF22F",
+  chainId: STUDIONET_CHAIN_ID_DEC,
+  chainIdHex: STUDIONET_CHAIN_ID_HEX,
   chainName: "GenLayer StudioNet",
   rpcUrl: "https://studio.genlayer.com/api",
   nativeCurrency: {
